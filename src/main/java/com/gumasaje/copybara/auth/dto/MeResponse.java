@@ -1,9 +1,8 @@
 package com.gumasaje.copybara.auth.dto;
 
-public record LoginResponse(
+public record MeResponse(
         Long memberId,
         String email,
-        String nickname,
-        String accessToken
+        String nickname
 ) {
 }

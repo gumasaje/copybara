@@ -1,5 +1,6 @@
 package com.gumasaje.copybara.auth.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -73,7 +75,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void loginReturnsMemberInfoWhenCredentialsAreValid() throws Exception {
+    void loginReturnsAccessTokenWhenCredentialsAreValid() throws Exception {
         String signupRequestBody = """
                 {
                   "email": "login-success@example.com",
@@ -100,7 +102,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").isNumber())
                 .andExpect(jsonPath("$.email").value("login-success@example.com"))
-                .andExpect(jsonPath("$.nickname").value("login-user"));
+                .andExpect(jsonPath("$.nickname").value("login-user"))
+                .andExpect(jsonPath("$.accessToken").isString());
     }
 
     @Test
@@ -131,5 +134,57 @@ class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_LOGIN"))
                 .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 올바르지 않습니다."));
+    }
+
+    @Test
+    void meReturnsUnauthorizedWithoutToken() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void meReturnsAuthenticatedMemberWhenTokenIsValid() throws Exception {
+        String signupRequestBody = """
+                {
+                  "email": "me@example.com",
+                  "password": "password123",
+                  "nickname": "me-user"
+                }
+                """;
+
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(signupRequestBody))
+                .andExpect(status().isCreated());
+
+        String loginRequestBody = """
+                {
+                  "email": "me@example.com",
+                  "password": "password123"
+                }
+                """;
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginRequestBody))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseBody = loginResult.getResponse().getContentAsString();
+        String accessToken = extractAccessToken(responseBody);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberId").isNumber())
+                .andExpect(jsonPath("$.email").value("me@example.com"))
+                .andExpect(jsonPath("$.nickname").value("me-user"));
+    }
+
+    private String extractAccessToken(String responseBody) {
+        String marker = "\"accessToken\":\"";
+        int start = responseBody.indexOf(marker) + marker.length();
+        int end = responseBody.indexOf('"', start);
+        return responseBody.substring(start, end);
     }
 }
