@@ -1,6 +1,7 @@
 package com.gumasaje.copybara.snippet.domain;
 
 import com.gumasaje.copybara.attachment.domain.Attachment;
+import com.gumasaje.copybara.comment.domain.Comment;
 import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.tag.domain.Tag;
 import jakarta.persistence.Column;
@@ -58,6 +59,9 @@ public class Snippet {
     @OneToMany(mappedBy = "snippet")
     private List<Attachment> attachments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "snippet")
+    private List<Comment> comments = new ArrayList<>();
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -104,6 +108,7 @@ public class Snippet {
     public String getDescription() { return description; }
     public Set<Tag> getTags() { return tags; }
     public List<Attachment> getAttachments() { return attachments; }
+    public List<Comment> getComments() { return comments; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

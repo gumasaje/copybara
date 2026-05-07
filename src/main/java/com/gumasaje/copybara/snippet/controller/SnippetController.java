@@ -5,6 +5,9 @@ import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
+import com.gumasaje.copybara.comment.dto.CommentCreateRequest;
+import com.gumasaje.copybara.comment.dto.CommentResponse;
+import com.gumasaje.copybara.comment.service.CommentService;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
@@ -32,15 +35,18 @@ public class SnippetController {
     private final SnippetService snippetService;
     private final AttachmentService attachmentService;
     private final SnippetAnalysisService snippetAnalysisService;
+    private final CommentService commentService;
 
     public SnippetController(
             SnippetService snippetService,
             AttachmentService attachmentService,
-            SnippetAnalysisService snippetAnalysisService
+            SnippetAnalysisService snippetAnalysisService,
+            CommentService commentService
     ) {
         this.snippetService = snippetService;
         this.attachmentService = attachmentService;
         this.snippetAnalysisService = snippetAnalysisService;
+        this.commentService = commentService;
     }
 
     @PostMapping
@@ -94,6 +100,45 @@ public class SnippetController {
     ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return attachmentService.upload(authMember.memberId(), snippetId, file);
+    }
+
+    @PostMapping("/{snippetId}/comments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CommentResponse createComment(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @Valid @RequestBody CommentCreateRequest request
+    ) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return commentService.create(authMember.memberId(), snippetId, request);
+    }
+
+    @GetMapping("/{snippetId}/comments")
+    public List<CommentResponse> getComments(Authentication authentication, @PathVariable Long snippetId) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return commentService.getComments(authMember.memberId(), snippetId);
+    }
+
+    @PutMapping("/{snippetId}/comments/{commentId}")
+    public CommentResponse updateComment(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @PathVariable Long commentId,
+            @Valid @RequestBody CommentCreateRequest request
+    ) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return commentService.update(authMember.memberId(), snippetId, commentId, request);
+    }
+
+    @DeleteMapping("/{snippetId}/comments/{commentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteComment(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @PathVariable Long commentId
+    ) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        commentService.delete(authMember.memberId(), snippetId, commentId);
     }
 
     @PostMapping("/{snippetId}/analysis")

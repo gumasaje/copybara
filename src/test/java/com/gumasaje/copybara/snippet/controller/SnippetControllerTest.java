@@ -125,6 +125,114 @@ class SnippetControllerTest {
     }
 
     @Test
+    void createCommentReturnsCreatedWhenSnippetBelongsToAuthenticatedMember() throws Exception {
+        String accessToken = signupAndLogin("snippet-comment@example.com", "snippet-comment-user");
+        Long snippetId = createSnippet(accessToken, "Comment snippet", "comment target");
+
+        String requestBody = """
+                {
+                  "content": "나중에 다시 볼 포인트"
+                }
+                """;
+
+        mockMvc.perform(post("/api/snippets/{snippetId}/comments", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.commentId").isNumber())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.memberId").isNumber())
+                .andExpect(jsonPath("$.nickname").value("snippet-comment-user"))
+                .andExpect(jsonPath("$.content").value("나중에 다시 볼 포인트"))
+                .andExpect(jsonPath("$.createdAt").isString())
+                .andExpect(jsonPath("$.updatedAt").isString());
+    }
+
+    @Test
+    void getCommentsReturnsCommentsForOwnedSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-comment-list@example.com", "snippet-comment-list-user");
+        Long snippetId = createSnippet(accessToken, "Comment list snippet", "comment list target");
+
+        createComment(accessToken, snippetId, "첫 번째 메모");
+        createComment(accessToken, snippetId, "두 번째 메모");
+
+        mockMvc.perform(get("/api/snippets/{snippetId}/comments", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].content").value("첫 번째 메모"))
+                .andExpect(jsonPath("$[0].nickname").value("snippet-comment-list-user"))
+                .andExpect(jsonPath("$[1].content").value("두 번째 메모"));
+    }
+
+    @Test
+    void updateCommentReturnsUpdatedCommentWhenCommentBelongsToOwnedSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-comment-update@example.com", "snippet-comment-update-user");
+        Long snippetId = createSnippet(accessToken, "Comment update snippet", "comment update target");
+        Long commentId = createComment(accessToken, snippetId, "수정 전 메모");
+
+        String requestBody = """
+                {
+                  "content": "수정 후 메모"
+                }
+                """;
+
+        mockMvc.perform(put("/api/snippets/{snippetId}/comments/{commentId}", snippetId, commentId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.commentId").value(commentId))
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.nickname").value("snippet-comment-update-user"))
+                .andExpect(jsonPath("$.content").value("수정 후 메모"))
+                .andExpect(jsonPath("$.updatedAt").isString());
+
+        mockMvc.perform(get("/api/snippets/{snippetId}/comments", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].content").value("수정 후 메모"));
+    }
+
+    @Test
+    void updateCommentReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
+        String ownerToken = signupAndLogin("snippet-comment-update-owner@example.com", "snippet-comment-update-owner");
+        Long snippetId = createSnippet(ownerToken, "Comment update owner snippet", "comment update owner target");
+        Long commentId = createComment(ownerToken, snippetId, "소유자 댓글");
+        String otherUserToken = signupAndLogin("snippet-comment-update-other@example.com", "snippet-comment-update-other");
+
+        String requestBody = """
+                {
+                  "content": "다른 사용자의 수정 시도"
+                }
+                """;
+
+        mockMvc.perform(put("/api/snippets/{snippetId}/comments/{commentId}", snippetId, commentId)
+                        .header("Authorization", "Bearer " + otherUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("해당 댓글을 찾을 수 없습니다."));
+    }
+
+    @Test
+    void deleteCommentReturnsNoContentWhenCommentBelongsToOwnedSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-comment-delete@example.com", "snippet-comment-delete-user");
+        Long snippetId = createSnippet(accessToken, "Comment delete snippet", "comment delete target");
+        Long commentId = createComment(accessToken, snippetId, "삭제할 메모");
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}/comments/{commentId}", snippetId, commentId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/snippets/{snippetId}/comments", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     void getMySnippetsReturnsOnlyAuthenticatedMembersSnippets() throws Exception {
         String accessToken = signupAndLogin("snippet-list@example.com", "snippet-list-user");
 
@@ -262,6 +370,23 @@ class SnippetControllerTest {
         return extractSnippetId(result.getResponse().getContentAsString());
     }
 
+    private Long createComment(String accessToken, Long snippetId, String content) throws Exception {
+        String requestBody = """
+                {
+                  "content": "%s"
+                }
+                """.formatted(content);
+
+        MvcResult result = mockMvc.perform(post("/api/snippets/{snippetId}/comments", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return extractCommentId(result.getResponse().getContentAsString());
+    }
+
     private String extractAccessToken(String responseBody) {
         String marker = "\"accessToken\":\"";
         int start = responseBody.indexOf(marker) + marker.length();
@@ -270,7 +395,15 @@ class SnippetControllerTest {
     }
 
     private Long extractSnippetId(String responseBody) {
-        String marker = "\"snippetId\":";
+        return extractLongValue(responseBody, "snippetId");
+    }
+
+    private Long extractCommentId(String responseBody) {
+        return extractLongValue(responseBody, "commentId");
+    }
+
+    private Long extractLongValue(String responseBody, String fieldName) {
+        String marker = "\"" + fieldName + "\":";
         int start = responseBody.indexOf(marker) + marker.length();
         int end = responseBody.indexOf(',', start);
         if (end == -1) {
