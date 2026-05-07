@@ -1,4 +1,4 @@
-package com.gumasaje.algoreview.common.exception;
+package com.gumasaje.copybara.common.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;

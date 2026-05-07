@@ -1,4 +1,4 @@
-package com.gumasaje.algoreview.common.config;
+package com.gumasaje.copybara.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

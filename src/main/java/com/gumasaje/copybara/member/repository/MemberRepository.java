@@ -1,6 +1,6 @@
-package com.gumasaje.algoreview.member.repository;
+package com.gumasaje.copybara.member.repository;
 
-import com.gumasaje.algoreview.member.domain.Member;
+import com.gumasaje.copybara.member.domain.Member;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 

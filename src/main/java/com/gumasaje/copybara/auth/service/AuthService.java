@@ -1,14 +1,14 @@
-package com.gumasaje.algoreview.auth.service;
+package com.gumasaje.copybara.auth.service;
 
-import com.gumasaje.algoreview.auth.dto.LoginRequest;
-import com.gumasaje.algoreview.auth.dto.LoginResponse;
-import com.gumasaje.algoreview.auth.dto.SignupRequest;
-import com.gumasaje.algoreview.auth.dto.SignupResponse;
-import com.gumasaje.algoreview.common.exception.DuplicateEmailException;
-import com.gumasaje.algoreview.common.exception.DuplicateNicknameException;
-import com.gumasaje.algoreview.common.exception.InvalidLoginException;
-import com.gumasaje.algoreview.member.domain.Member;
-import com.gumasaje.algoreview.member.repository.MemberRepository;
+import com.gumasaje.copybara.auth.dto.LoginRequest;
+import com.gumasaje.copybara.auth.dto.LoginResponse;
+import com.gumasaje.copybara.auth.dto.SignupRequest;
+import com.gumasaje.copybara.auth.dto.SignupResponse;
+import com.gumasaje.copybara.common.exception.DuplicateEmailException;
+import com.gumasaje.copybara.common.exception.DuplicateNicknameException;
+import com.gumasaje.copybara.common.exception.InvalidLoginException;
+import com.gumasaje.copybara.member.domain.Member;
+import com.gumasaje.copybara.member.repository.MemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;

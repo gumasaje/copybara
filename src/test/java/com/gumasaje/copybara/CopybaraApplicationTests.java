@@ -1,10 +1,10 @@
-package com.gumasaje.algoreview;
+package com.gumasaje.copybara;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class AlgoreviewApplicationTests {
+class CopybaraApplicationTests {
 
     @Test
     void contextLoads() {

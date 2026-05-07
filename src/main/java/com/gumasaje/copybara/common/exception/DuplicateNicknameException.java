@@ -1,4 +1,4 @@
-package com.gumasaje.algoreview.common.exception;
+package com.gumasaje.copybara.common.exception;
 
 public class DuplicateNicknameException extends RuntimeException {
 

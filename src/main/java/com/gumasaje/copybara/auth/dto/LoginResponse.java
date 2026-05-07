@@ -1,6 +1,6 @@
-package com.gumasaje.algoreview.auth.dto;
+package com.gumasaje.copybara.auth.dto;
 
-public record SignupResponse(
+public record LoginResponse(
         Long memberId,
         String email,
         String nickname

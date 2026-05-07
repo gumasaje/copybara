@@ -1,4 +1,4 @@
-package com.gumasaje.algoreview.member.domain;
+package com.gumasaje.copybara.member.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

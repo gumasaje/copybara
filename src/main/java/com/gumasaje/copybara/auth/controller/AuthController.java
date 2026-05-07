@@ -1,10 +1,10 @@
-package com.gumasaje.algoreview.auth.controller;
+package com.gumasaje.copybara.auth.controller;
 
-import com.gumasaje.algoreview.auth.dto.LoginRequest;
-import com.gumasaje.algoreview.auth.dto.LoginResponse;
-import com.gumasaje.algoreview.auth.dto.SignupRequest;
-import com.gumasaje.algoreview.auth.dto.SignupResponse;
-import com.gumasaje.algoreview.auth.service.AuthService;
+import com.gumasaje.copybara.auth.dto.LoginRequest;
+import com.gumasaje.copybara.auth.dto.LoginResponse;
+import com.gumasaje.copybara.auth.dto.SignupRequest;
+import com.gumasaje.copybara.auth.dto.SignupResponse;
+import com.gumasaje.copybara.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
