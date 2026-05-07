@@ -8,6 +8,7 @@ public record SnippetSummaryResponse(
         String title,
         String language,
         String description,
+        boolean favorite,
         List<String> tags,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

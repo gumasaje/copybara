@@ -56,6 +56,7 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.title").value("JWT filter example"))
                 .andExpect(jsonPath("$.language").value("Java"))
                 .andExpect(jsonPath("$.description").value("JWT 인증 필터 예제"))
+                .andExpect(jsonPath("$.favorite").value(false))
                 .andExpect(jsonPath("$.tags[0]").value("Spring"))
                 .andExpect(jsonPath("$.tags[1]").value("Security"))
                 .andExpect(jsonPath("$.attachments").isArray());
@@ -182,7 +183,7 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + otherUserToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("해당 첨부파일을 찾을 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("해당 스니펫을 찾을 수 없습니다."));
     }
 
     @Test
@@ -210,13 +211,13 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + otherUserToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("해당 첨부파일을 찾을 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("해당 스니펫을 찾을 수 없습니다."));
     }
 
     @Test
-    void createCommentReturnsCreatedWhenSnippetBelongsToAuthenticatedMember() throws Exception {
-        String accessToken = signupAndLogin("snippet-comment@example.com", "snippet-comment-user");
-        Long snippetId = createSnippet(accessToken, "Comment snippet", "comment target");
+    void createMemoReturnsCreatedWhenSnippetBelongsToAuthenticatedMember() throws Exception {
+        String accessToken = signupAndLogin("snippet-memo@example.com", "snippet-memo-user");
+        Long snippetId = createSnippet(accessToken, "Memo snippet", "memo target");
 
         String requestBody = """
                 {
@@ -224,24 +225,22 @@ class SnippetControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/snippets/{snippetId}/comments", snippetId)
+        mockMvc.perform(post("/api/snippets/{snippetId}/memos", snippetId)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.commentId").isNumber())
+                .andExpect(jsonPath("$.memoId").isNumber())
                 .andExpect(jsonPath("$.snippetId").value(snippetId))
-                .andExpect(jsonPath("$.memberId").isNumber())
-                .andExpect(jsonPath("$.nickname").value("snippet-comment-user"))
                 .andExpect(jsonPath("$.content").value("나중에 다시 볼 포인트"))
                 .andExpect(jsonPath("$.createdAt").isString())
                 .andExpect(jsonPath("$.updatedAt").isString());
     }
 
     @Test
-    void createCommentReturnsBadRequestWhenContentIsBlank() throws Exception {
-        String accessToken = signupAndLogin("snippet-comment-validation@example.com", "snippet-comment-validation-user");
-        Long snippetId = createSnippet(accessToken, "Comment validation snippet", "comment validation target");
+    void createMemoReturnsBadRequestWhenContentIsBlank() throws Exception {
+        String accessToken = signupAndLogin("snippet-memo-validation@example.com", "snippet-memo-validation-user");
+        Long snippetId = createSnippet(accessToken, "Memo validation snippet", "memo validation target");
 
         String requestBody = """
                 {
@@ -249,36 +248,35 @@ class SnippetControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/snippets/{snippetId}/comments", snippetId)
+        mockMvc.perform(post("/api/snippets/{snippetId}/memos", snippetId)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.message").value("댓글 내용은 필수입니다."));
+                .andExpect(jsonPath("$.message").value("메모 내용은 필수입니다."));
     }
 
     @Test
-    void getCommentsReturnsCommentsForOwnedSnippet() throws Exception {
-        String accessToken = signupAndLogin("snippet-comment-list@example.com", "snippet-comment-list-user");
-        Long snippetId = createSnippet(accessToken, "Comment list snippet", "comment list target");
+    void getMemosReturnsMemosForOwnedSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-memo-list@example.com", "snippet-memo-list-user");
+        Long snippetId = createSnippet(accessToken, "Memo list snippet", "memo list target");
 
-        createComment(accessToken, snippetId, "첫 번째 메모");
-        createComment(accessToken, snippetId, "두 번째 메모");
+        createMemo(accessToken, snippetId, "첫 번째 메모");
+        createMemo(accessToken, snippetId, "두 번째 메모");
 
-        mockMvc.perform(get("/api/snippets/{snippetId}/comments", snippetId)
+        mockMvc.perform(get("/api/snippets/{snippetId}/memos", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].content").value("첫 번째 메모"))
-                .andExpect(jsonPath("$[0].nickname").value("snippet-comment-list-user"))
                 .andExpect(jsonPath("$[1].content").value("두 번째 메모"));
     }
 
     @Test
-    void updateCommentReturnsUpdatedCommentWhenCommentBelongsToOwnedSnippet() throws Exception {
-        String accessToken = signupAndLogin("snippet-comment-update@example.com", "snippet-comment-update-user");
-        Long snippetId = createSnippet(accessToken, "Comment update snippet", "comment update target");
-        Long commentId = createComment(accessToken, snippetId, "수정 전 메모");
+    void updateMemoReturnsUpdatedMemoWhenMemoBelongsToOwnedSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-memo-update@example.com", "snippet-memo-update-user");
+        Long snippetId = createSnippet(accessToken, "Memo update snippet", "memo update target");
+        Long memoId = createMemo(accessToken, snippetId, "수정 전 메모");
 
         String requestBody = """
                 {
@@ -286,29 +284,28 @@ class SnippetControllerTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/snippets/{snippetId}/comments/{commentId}", snippetId, commentId)
+        mockMvc.perform(put("/api/snippets/{snippetId}/memos/{memoId}", snippetId, memoId)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.commentId").value(commentId))
+                .andExpect(jsonPath("$.memoId").value(memoId))
                 .andExpect(jsonPath("$.snippetId").value(snippetId))
-                .andExpect(jsonPath("$.nickname").value("snippet-comment-update-user"))
                 .andExpect(jsonPath("$.content").value("수정 후 메모"))
                 .andExpect(jsonPath("$.updatedAt").isString());
 
-        mockMvc.perform(get("/api/snippets/{snippetId}/comments", snippetId)
+        mockMvc.perform(get("/api/snippets/{snippetId}/memos", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].content").value("수정 후 메모"));
     }
 
     @Test
-    void updateCommentReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
-        String ownerToken = signupAndLogin("snippet-comment-update-owner@example.com", "snippet-comment-update-owner");
-        Long snippetId = createSnippet(ownerToken, "Comment update owner snippet", "comment update owner target");
-        Long commentId = createComment(ownerToken, snippetId, "소유자 댓글");
-        String otherUserToken = signupAndLogin("snippet-comment-update-other@example.com", "snippet-comment-update-other");
+    void updateMemoReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
+        String ownerToken = signupAndLogin("snippet-memo-update-owner@example.com", "snippet-memo-update-owner");
+        Long snippetId = createSnippet(ownerToken, "Memo update owner snippet", "memo update owner target");
+        Long memoId = createMemo(ownerToken, snippetId, "소유자 메모");
+        String otherUserToken = signupAndLogin("snippet-memo-update-other@example.com", "snippet-memo-update-other");
 
         String requestBody = """
                 {
@@ -316,26 +313,26 @@ class SnippetControllerTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/snippets/{snippetId}/comments/{commentId}", snippetId, commentId)
+        mockMvc.perform(put("/api/snippets/{snippetId}/memos/{memoId}", snippetId, memoId)
                         .header("Authorization", "Bearer " + otherUserToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("해당 댓글을 찾을 수 없습니다."));
+                .andExpect(jsonPath("$.message").value("해당 스니펫을 찾을 수 없습니다."));
     }
 
     @Test
-    void deleteCommentReturnsNoContentWhenCommentBelongsToOwnedSnippet() throws Exception {
-        String accessToken = signupAndLogin("snippet-comment-delete@example.com", "snippet-comment-delete-user");
-        Long snippetId = createSnippet(accessToken, "Comment delete snippet", "comment delete target");
-        Long commentId = createComment(accessToken, snippetId, "삭제할 메모");
+    void deleteMemoReturnsNoContentWhenMemoBelongsToOwnedSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-memo-delete@example.com", "snippet-memo-delete-user");
+        Long snippetId = createSnippet(accessToken, "Memo delete snippet", "memo delete target");
+        Long memoId = createMemo(accessToken, snippetId, "삭제할 메모");
 
-        mockMvc.perform(delete("/api/snippets/{snippetId}/comments/{commentId}", snippetId, commentId)
+        mockMvc.perform(delete("/api/snippets/{snippetId}/memos/{memoId}", snippetId, memoId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/snippets/{snippetId}/comments", snippetId)
+        mockMvc.perform(get("/api/snippets/{snippetId}/memos", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
@@ -353,6 +350,7 @@ class SnippetControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].snippetId").isNumber())
                 .andExpect(jsonPath("$[0].title").value("Second snippet"))
+                .andExpect(jsonPath("$[0].favorite").value(false))
                 .andExpect(jsonPath("$[0].tags[0]").value("Java"))
                 .andExpect(jsonPath("$[1].title").value("First snippet"));
     }
@@ -400,7 +398,53 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.snippetId").value(snippetId))
                 .andExpect(jsonPath("$.title").value("Detail snippet"))
                 .andExpect(jsonPath("$.content").value("System.out.println('hello');"))
+                .andExpect(jsonPath("$.favorite").value(false))
                 .andExpect(jsonPath("$.tags[0]").value("Java"));
+    }
+
+    @Test
+    void updateFavoriteChangesSnippetFavoriteStatus() throws Exception {
+        String accessToken = signupAndLogin("snippet-favorite@example.com", "snippet-favorite-user");
+        Long snippetId = createSnippet(accessToken, "Favorite snippet", "favorite-content");
+
+        String requestBody = """
+                {
+                  "favorite": true
+                }
+                """;
+
+        mockMvc.perform(put("/api/snippets/{snippetId}/favorite", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.favorite").value(true));
+
+        mockMvc.perform(get("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].favorite").value(true));
+    }
+
+    @Test
+    void updateFavoriteReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
+        String ownerToken = signupAndLogin("snippet-favorite-owner@example.com", "snippet-favorite-owner");
+        Long snippetId = createSnippet(ownerToken, "Favorite owner snippet", "favorite-owner-content");
+        String otherUserToken = signupAndLogin("snippet-favorite-other@example.com", "snippet-favorite-other");
+
+        String requestBody = """
+                {
+                  "favorite": true
+                }
+                """;
+
+        mockMvc.perform(put("/api/snippets/{snippetId}/favorite", snippetId)
+                        .header("Authorization", "Bearer " + otherUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));
     }
 
     @Test
@@ -477,7 +521,7 @@ class SnippetControllerTest {
     void deleteSnippetReturnsNoContentWhenSnippetHasChildRecords() throws Exception {
         String accessToken = signupAndLogin("snippet-delete-children@example.com", "snippet-delete-children-user");
         Long snippetId = createSnippet(accessToken, "Delete children title", "delete-children-content");
-        createComment(accessToken, snippetId, "삭제될 댓글");
+        createMemo(accessToken, snippetId, "삭제될 메모");
 
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -574,21 +618,21 @@ class SnippetControllerTest {
         return extractSnippetId(result.getResponse().getContentAsString());
     }
 
-    private Long createComment(String accessToken, Long snippetId, String content) throws Exception {
+    private Long createMemo(String accessToken, Long snippetId, String content) throws Exception {
         String requestBody = """
                 {
                   "content": "%s"
                 }
                 """.formatted(content);
 
-        MvcResult result = mockMvc.perform(post("/api/snippets/{snippetId}/comments", snippetId)
+        MvcResult result = mockMvc.perform(post("/api/snippets/{snippetId}/memos", snippetId)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        return extractCommentId(result.getResponse().getContentAsString());
+        return extractMemoId(result.getResponse().getContentAsString());
     }
 
     private Long uploadAttachment(String accessToken, Long snippetId, String originalName, String content) throws Exception {
@@ -619,8 +663,8 @@ class SnippetControllerTest {
         return extractLongValue(responseBody, "snippetId");
     }
 
-    private Long extractCommentId(String responseBody) {
-        return extractLongValue(responseBody, "commentId");
+    private Long extractMemoId(String responseBody) {
+        return extractLongValue(responseBody, "memoId");
     }
 
     private Long extractAttachmentId(String responseBody) {

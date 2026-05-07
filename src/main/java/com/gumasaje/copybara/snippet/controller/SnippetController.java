@@ -6,11 +6,12 @@ import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
-import com.gumasaje.copybara.comment.dto.CommentCreateRequest;
-import com.gumasaje.copybara.comment.dto.CommentResponse;
-import com.gumasaje.copybara.comment.service.CommentService;
+import com.gumasaje.copybara.memo.dto.MemoCreateRequest;
+import com.gumasaje.copybara.memo.dto.MemoResponse;
+import com.gumasaje.copybara.memo.service.MemoService;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
+import com.gumasaje.copybara.snippet.dto.SnippetFavoriteRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
 import com.gumasaje.copybara.snippet.service.SnippetService;
 import jakarta.validation.Valid;
@@ -42,18 +43,18 @@ public class SnippetController {
     private final SnippetService snippetService;
     private final AttachmentService attachmentService;
     private final SnippetAnalysisService snippetAnalysisService;
-    private final CommentService commentService;
+    private final MemoService memoService;
 
     public SnippetController(
             SnippetService snippetService,
             AttachmentService attachmentService,
             SnippetAnalysisService snippetAnalysisService,
-            CommentService commentService
+            MemoService memoService
     ) {
         this.snippetService = snippetService;
         this.attachmentService = attachmentService;
         this.snippetAnalysisService = snippetAnalysisService;
-        this.commentService = commentService;
+        this.memoService = memoService;
     }
 
     @PostMapping
@@ -102,6 +103,16 @@ public class SnippetController {
         snippetService.delete(authMember.memberId(), snippetId);
     }
 
+    @PutMapping("/{snippetId}/favorite")
+    public SnippetDetailResponse updateFavorite(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @Valid @RequestBody SnippetFavoriteRequest request
+    ) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return snippetService.updateFavorite(authMember.memberId(), snippetId, request);
+    }
+
     @PostMapping("/{snippetId}/attachments")
     @ResponseStatus(HttpStatus.CREATED)
     public AttachmentResponse uploadAttachment(
@@ -143,43 +154,43 @@ public class SnippetController {
                 .body(download.resource());
     }
 
-    @PostMapping("/{snippetId}/comments")
+    @PostMapping("/{snippetId}/memos")
     @ResponseStatus(HttpStatus.CREATED)
-    public CommentResponse createComment(
+    public MemoResponse createMemo(
             Authentication authentication,
             @PathVariable Long snippetId,
-            @Valid @RequestBody CommentCreateRequest request
+            @Valid @RequestBody MemoCreateRequest request
     ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
-        return commentService.create(authMember.memberId(), snippetId, request);
+        return memoService.create(authMember.memberId(), snippetId, request);
     }
 
-    @GetMapping("/{snippetId}/comments")
-    public List<CommentResponse> getComments(Authentication authentication, @PathVariable Long snippetId) {
+    @GetMapping("/{snippetId}/memos")
+    public List<MemoResponse> getMemos(Authentication authentication, @PathVariable Long snippetId) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
-        return commentService.getComments(authMember.memberId(), snippetId);
+        return memoService.getMemos(authMember.memberId(), snippetId);
     }
 
-    @PutMapping("/{snippetId}/comments/{commentId}")
-    public CommentResponse updateComment(
+    @PutMapping("/{snippetId}/memos/{memoId}")
+    public MemoResponse updateMemo(
             Authentication authentication,
             @PathVariable Long snippetId,
-            @PathVariable Long commentId,
-            @Valid @RequestBody CommentCreateRequest request
+            @PathVariable Long memoId,
+            @Valid @RequestBody MemoCreateRequest request
     ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
-        return commentService.update(authMember.memberId(), snippetId, commentId, request);
+        return memoService.update(authMember.memberId(), snippetId, memoId, request);
     }
 
-    @DeleteMapping("/{snippetId}/comments/{commentId}")
+    @DeleteMapping("/{snippetId}/memos/{memoId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteComment(
+    public void deleteMemo(
             Authentication authentication,
             @PathVariable Long snippetId,
-            @PathVariable Long commentId
+            @PathVariable Long memoId
     ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
-        commentService.delete(authMember.memberId(), snippetId, commentId);
+        memoService.delete(authMember.memberId(), snippetId, memoId);
     }
 
     @PostMapping("/{snippetId}/analysis")

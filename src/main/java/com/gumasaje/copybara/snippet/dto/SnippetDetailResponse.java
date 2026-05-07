@@ -6,11 +6,11 @@ import java.util.List;
 
 public record SnippetDetailResponse(
         Long snippetId,
-        Long memberId,
         String title,
         String content,
         String language,
         String description,
+        boolean favorite,
         List<String> tags,
         List<AttachmentResponse> attachments,
         LocalDateTime createdAt,

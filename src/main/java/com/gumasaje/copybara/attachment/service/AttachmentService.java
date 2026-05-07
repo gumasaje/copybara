@@ -38,8 +38,7 @@ public class AttachmentService {
             throw new InvalidAttachmentException("업로드할 파일이 필요합니다.");
         }
 
-        Snippet snippet = snippetRepository.findByIdAndMemberId(snippetId, memberId)
-                .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
+        Snippet snippet = getOwnedSnippet(memberId, snippetId);
 
         String originalName = file.getOriginalFilename() == null ? "unknown" : file.getOriginalFilename();
         String storedName = UUID.randomUUID() + "_" + originalName;
@@ -60,8 +59,7 @@ public class AttachmentService {
     }
 
     public void delete(Long memberId, Long snippetId, Long attachmentId) {
-        Attachment attachment = attachmentRepository.findByIdAndSnippetIdAndSnippetMemberId(attachmentId, snippetId, memberId)
-                .orElseThrow(() -> new SnippetNotFoundException("해당 첨부파일을 찾을 수 없습니다."));
+        Attachment attachment = getOwnedAttachment(memberId, snippetId, attachmentId);
 
         try {
             Files.deleteIfExists(uploadRoot.resolve(attachment.getStoredName()));
@@ -74,8 +72,7 @@ public class AttachmentService {
 
     @Transactional(readOnly = true)
     public AttachmentDownload download(Long memberId, Long snippetId, Long attachmentId) {
-        Attachment attachment = attachmentRepository.findByIdAndSnippetIdAndSnippetMemberId(attachmentId, snippetId, memberId)
-                .orElseThrow(() -> new SnippetNotFoundException("해당 첨부파일을 찾을 수 없습니다."));
+        Attachment attachment = getOwnedAttachment(memberId, snippetId, attachmentId);
 
         try {
             Resource resource = new UrlResource(uploadRoot.resolve(attachment.getStoredName()).toUri());
@@ -94,6 +91,17 @@ public class AttachmentService {
         } catch (IOException exception) {
             throw new AttachmentStorageException("첨부파일을 읽는 중 오류가 발생했습니다.", exception);
         }
+    }
+
+    private Snippet getOwnedSnippet(Long memberId, Long snippetId) {
+        return snippetRepository.findByIdAndMemberId(snippetId, memberId)
+                .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
+    }
+
+    private Attachment getOwnedAttachment(Long memberId, Long snippetId, Long attachmentId) {
+        getOwnedSnippet(memberId, snippetId);
+        return attachmentRepository.findByIdAndSnippetId(attachmentId, snippetId)
+                .orElseThrow(() -> new SnippetNotFoundException("해당 첨부파일을 찾을 수 없습니다."));
     }
 
     public AttachmentResponse toResponse(Attachment attachment) {

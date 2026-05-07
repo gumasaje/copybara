@@ -9,5 +9,5 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     List<Attachment> findAllBySnippetIdOrderByUploadedAtAsc(Long snippetId);
 
-    Optional<Attachment> findByIdAndSnippetIdAndSnippetMemberId(Long attachmentId, Long snippetId, Long memberId);
+    Optional<Attachment> findByIdAndSnippetId(Long attachmentId, Long snippetId);
 }

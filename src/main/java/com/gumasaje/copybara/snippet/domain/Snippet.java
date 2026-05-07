@@ -2,7 +2,7 @@ package com.gumasaje.copybara.snippet.domain;
 
 import com.gumasaje.copybara.analysis.domain.SnippetAnalysis;
 import com.gumasaje.copybara.attachment.domain.Attachment;
-import com.gumasaje.copybara.comment.domain.Comment;
+import com.gumasaje.copybara.memo.domain.Memo;
 import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.tag.domain.Tag;
 import jakarta.persistence.CascadeType;
@@ -51,6 +51,9 @@ public class Snippet {
     @Column(length = 255)
     private String description;
 
+    @Column(nullable = false)
+    private boolean favorite;
+
     @ManyToMany
     @JoinTable(
             name = "snippet_tags",
@@ -63,7 +66,7 @@ public class Snippet {
     private List<Attachment> attachments = new ArrayList<>();
 
     @OneToMany(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private List<Comment> comments = new ArrayList<>();
+    private List<Memo> memos = new ArrayList<>();
 
     @OneToOne(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private SnippetAnalysis analysis;
@@ -96,6 +99,10 @@ public class Snippet {
         this.tags.addAll(tags);
     }
 
+    public void updateFavorite(boolean favorite) {
+        this.favorite = favorite;
+    }
+
     @PrePersist
     void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -112,9 +119,10 @@ public class Snippet {
     public String getContent() { return content; }
     public String getLanguage() { return language; }
     public String getDescription() { return description; }
+    public boolean isFavorite() { return favorite; }
     public Set<Tag> getTags() { return tags; }
     public List<Attachment> getAttachments() { return attachments; }
-    public List<Comment> getComments() { return comments; }
+    public List<Memo> getMemos() { return memos; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

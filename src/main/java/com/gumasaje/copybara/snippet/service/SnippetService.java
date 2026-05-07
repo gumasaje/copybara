@@ -9,6 +9,7 @@ import com.gumasaje.copybara.member.repository.MemberRepository;
 import com.gumasaje.copybara.snippet.domain.Snippet;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
+import com.gumasaje.copybara.snippet.dto.SnippetFavoriteRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
 import com.gumasaje.copybara.snippet.repository.SnippetRepository;
 import com.gumasaje.copybara.tag.domain.Tag;
@@ -83,6 +84,12 @@ public class SnippetService {
         snippetRepository.delete(findOwnedSnippet(memberId, snippetId));
     }
 
+    public SnippetDetailResponse updateFavorite(Long memberId, Long snippetId, SnippetFavoriteRequest request) {
+        Snippet snippet = findOwnedSnippet(memberId, snippetId);
+        snippet.updateFavorite(request.favorite());
+        return toDetailResponse(snippet);
+    }
+
     private Snippet findOwnedSnippet(Long memberId, Long snippetId) {
         return snippetRepository.findByIdAndMemberId(snippetId, memberId)
                 .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
@@ -124,11 +131,11 @@ public class SnippetService {
     }
 
     private SnippetSummaryResponse toSummaryResponse(Snippet snippet) {
-        return new SnippetSummaryResponse(snippet.getId(), snippet.getTitle(), snippet.getLanguage(), snippet.getDescription(), extractTagNames(snippet), snippet.getCreatedAt(), snippet.getUpdatedAt());
+        return new SnippetSummaryResponse(snippet.getId(), snippet.getTitle(), snippet.getLanguage(), snippet.getDescription(), snippet.isFavorite(), extractTagNames(snippet), snippet.getCreatedAt(), snippet.getUpdatedAt());
     }
 
     private SnippetDetailResponse toDetailResponse(Snippet snippet) {
-        return new SnippetDetailResponse(snippet.getId(), snippet.getMember().getId(), snippet.getTitle(), snippet.getContent(), snippet.getLanguage(), snippet.getDescription(), extractTagNames(snippet), extractAttachments(snippet), snippet.getCreatedAt(), snippet.getUpdatedAt());
+        return new SnippetDetailResponse(snippet.getId(), snippet.getTitle(), snippet.getContent(), snippet.getLanguage(), snippet.getDescription(), snippet.isFavorite(), extractTagNames(snippet), extractAttachments(snippet), snippet.getCreatedAt(), snippet.getUpdatedAt());
     }
 
     private List<String> extractTagNames(Snippet snippet) {
