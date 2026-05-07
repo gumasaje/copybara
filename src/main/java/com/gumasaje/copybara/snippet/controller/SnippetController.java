@@ -1,6 +1,7 @@
 package com.gumasaje.copybara.snippet.controller;
 
 import com.gumasaje.copybara.analysis.dto.SnippetAnalysisResponse;
+import com.gumasaje.copybara.attachment.dto.AttachmentDownload;
 import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
@@ -14,7 +15,12 @@ import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
 import com.gumasaje.copybara.snippet.service.SnippetService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -100,6 +106,36 @@ public class SnippetController {
     ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return attachmentService.upload(authMember.memberId(), snippetId, file);
+    }
+
+    @DeleteMapping("/{snippetId}/attachments/{attachmentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAttachment(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @PathVariable Long attachmentId
+    ) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        attachmentService.delete(authMember.memberId(), snippetId, attachmentId);
+    }
+
+    @GetMapping("/{snippetId}/attachments/{attachmentId}/download")
+    public ResponseEntity<Resource> downloadAttachment(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @PathVariable Long attachmentId
+    ) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        AttachmentDownload download = attachmentService.download(authMember.memberId(), snippetId, attachmentId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .contentLength(download.fileSize())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(download.originalName())
+                        .build()
+                        .toString())
+                .body(download.resource());
     }
 
     @PostMapping("/{snippetId}/comments")

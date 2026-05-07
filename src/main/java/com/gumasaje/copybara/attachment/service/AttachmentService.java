@@ -1,6 +1,7 @@
 package com.gumasaje.copybara.attachment.service;
 
 import com.gumasaje.copybara.attachment.domain.Attachment;
+import com.gumasaje.copybara.attachment.dto.AttachmentDownload;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.repository.AttachmentRepository;
 import com.gumasaje.copybara.common.exception.AttachmentStorageException;
@@ -13,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,6 +57,43 @@ public class AttachmentService {
                 new Attachment(snippet, originalName, storedName, contentType, file.getSize())
         );
         return toResponse(attachment);
+    }
+
+    public void delete(Long memberId, Long snippetId, Long attachmentId) {
+        Attachment attachment = attachmentRepository.findByIdAndSnippetIdAndSnippetMemberId(attachmentId, snippetId, memberId)
+                .orElseThrow(() -> new SnippetNotFoundException("해당 첨부파일을 찾을 수 없습니다."));
+
+        try {
+            Files.deleteIfExists(uploadRoot.resolve(attachment.getStoredName()));
+        } catch (IOException exception) {
+            throw new AttachmentStorageException("첨부파일 삭제 중 오류가 발생했습니다.", exception);
+        }
+
+        attachmentRepository.delete(attachment);
+    }
+
+    @Transactional(readOnly = true)
+    public AttachmentDownload download(Long memberId, Long snippetId, Long attachmentId) {
+        Attachment attachment = attachmentRepository.findByIdAndSnippetIdAndSnippetMemberId(attachmentId, snippetId, memberId)
+                .orElseThrow(() -> new SnippetNotFoundException("해당 첨부파일을 찾을 수 없습니다."));
+
+        try {
+            Resource resource = new UrlResource(uploadRoot.resolve(attachment.getStoredName()).toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                throw new AttachmentStorageException(
+                        "첨부파일을 읽을 수 없습니다.",
+                        new IOException("Stored attachment file is missing or unreadable.")
+                );
+            }
+            return new AttachmentDownload(
+                    attachment.getOriginalName(),
+                    attachment.getContentType(),
+                    attachment.getFileSize(),
+                    resource
+            );
+        } catch (IOException exception) {
+            throw new AttachmentStorageException("첨부파일을 읽는 중 오류가 발생했습니다.", exception);
+        }
     }
 
     public AttachmentResponse toResponse(Attachment attachment) {
