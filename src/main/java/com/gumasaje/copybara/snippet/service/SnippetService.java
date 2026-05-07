@@ -29,7 +29,12 @@ public class SnippetService {
     private final TagRepository tagRepository;
     private final AttachmentService attachmentService;
 
-    public SnippetService(SnippetRepository snippetRepository, MemberRepository memberRepository, TagRepository tagRepository, AttachmentService attachmentService) {
+    public SnippetService(
+            SnippetRepository snippetRepository,
+            MemberRepository memberRepository,
+            TagRepository tagRepository,
+            AttachmentService attachmentService
+    ) {
         this.snippetRepository = snippetRepository;
         this.memberRepository = memberRepository;
         this.tagRepository = tagRepository;
@@ -74,18 +79,18 @@ public class SnippetService {
         if (tagNames == null || tagNames.isEmpty()) return List.of();
         Map<String, String> normalizedTagNames = new LinkedHashMap<>();
         for (String tagName : tagNames) {
-            String normalized = tagName.trim().toLowerCase();
+            String normalized = Tag.normalize(tagName);
             if (!normalized.isEmpty()) normalizedTagNames.putIfAbsent(normalized, tagName.trim());
         }
         if (normalizedTagNames.isEmpty()) return List.of();
-        List<String> names = new ArrayList<>(normalizedTagNames.values());
-        List<Tag> existingTags = tagRepository.findAllByNameIn(names);
+        List<String> normalizedNames = new ArrayList<>(normalizedTagNames.keySet());
+        List<Tag> existingTags = tagRepository.findAllByNormalizedNameIn(normalizedNames);
         Map<String, Tag> tagByName = new LinkedHashMap<>();
-        for (Tag existingTag : existingTags) tagByName.put(existingTag.getName(), existingTag);
+        for (Tag existingTag : existingTags) tagByName.put(existingTag.getNormalizedName(), existingTag);
         List<Tag> resolvedTags = new ArrayList<>();
-        for (String name : names) {
-            Tag tag = tagByName.get(name);
-            if (tag == null) tag = tagRepository.save(new Tag(name));
+        for (String normalizedName : normalizedNames) {
+            Tag tag = tagByName.get(normalizedName);
+            if (tag == null) tag = tagRepository.save(new Tag(normalizedTagNames.get(normalizedName)));
             resolvedTags.add(tag);
         }
         return resolvedTags;

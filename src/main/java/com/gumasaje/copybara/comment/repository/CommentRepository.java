@@ -10,4 +10,3 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     java.util.Optional<Comment> findByIdAndSnippetIdAndSnippetMemberId(Long commentId, Long snippetId, Long memberId);
 }
-

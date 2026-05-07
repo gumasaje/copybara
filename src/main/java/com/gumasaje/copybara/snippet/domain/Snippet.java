@@ -1,9 +1,11 @@
 package com.gumasaje.copybara.snippet.domain;
 
+import com.gumasaje.copybara.analysis.domain.SnippetAnalysis;
 import com.gumasaje.copybara.attachment.domain.Attachment;
 import com.gumasaje.copybara.comment.domain.Comment;
 import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.tag.domain.Tag;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -15,6 +17,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -56,11 +59,14 @@ public class Snippet {
     )
     private Set<Tag> tags = new LinkedHashSet<>();
 
-    @OneToMany(mappedBy = "snippet")
+    @OneToMany(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Attachment> attachments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "snippet")
+    @OneToMany(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
+
+    @OneToOne(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private SnippetAnalysis analysis;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
-    List<Tag> findAllByNameIn(List<String> names);
+    List<Tag> findAllByNormalizedNameIn(List<String> normalizedNames);
 
     Optional<Tag> findByName(String name);
 }

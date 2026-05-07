@@ -18,11 +18,15 @@ public class Tag {
     @Column(nullable = false, unique = true, length = 50)
     private String name;
 
+    @Column(nullable = false, unique = true, length = 50)
+    private String normalizedName;
+
     protected Tag() {
     }
 
     public Tag(String name) {
-        this.name = name;
+        this.name = name.trim();
+        this.normalizedName = normalize(name);
     }
 
     public Long getId() {
@@ -31,5 +35,13 @@ public class Tag {
 
     public String getName() {
         return name;
+    }
+
+    public String getNormalizedName() {
+        return normalizedName;
+    }
+
+    public static String normalize(String name) {
+        return name.trim().toLowerCase();
     }
 }

@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gumasaje.copybara.tag.repository.TagRepository;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +26,9 @@ class SnippetControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private TagRepository tagRepository;
 
     @Test
     void createSnippetReturnsCreatedWhenTokenIsValid() throws Exception {
@@ -51,6 +56,29 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.tags[0]").value("Spring"))
                 .andExpect(jsonPath("$.tags[1]").value("Security"))
                 .andExpect(jsonPath("$.attachments").isArray());
+    }
+
+    @Test
+    void createSnippetReturnsBadRequestWhenTitleIsBlank() throws Exception {
+        String accessToken = signupAndLogin("snippet-validation@example.com", "snippet-validation-user");
+
+        String requestBody = """
+                {
+                  "title": "",
+                  "content": "validation-content",
+                  "language": "Java",
+                  "description": "validation-description",
+                  "tags": ["Java"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("제목은 필수입니다."));
     }
 
     @Test
@@ -147,6 +175,26 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.content").value("나중에 다시 볼 포인트"))
                 .andExpect(jsonPath("$.createdAt").isString())
                 .andExpect(jsonPath("$.updatedAt").isString());
+    }
+
+    @Test
+    void createCommentReturnsBadRequestWhenContentIsBlank() throws Exception {
+        String accessToken = signupAndLogin("snippet-comment-validation@example.com", "snippet-comment-validation-user");
+        Long snippetId = createSnippet(accessToken, "Comment validation snippet", "comment validation target");
+
+        String requestBody = """
+                {
+                  "content": ""
+                }
+                """;
+
+        mockMvc.perform(post("/api/snippets/{snippetId}/comments", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("댓글 내용은 필수입니다."));
     }
 
     @Test
@@ -291,9 +339,68 @@ class SnippetControllerTest {
     }
 
     @Test
+    void createSnippetReusesTagWhenNameDiffersOnlyByCase() throws Exception {
+        String accessToken = signupAndLogin("snippet-tag-normalize@example.com", "snippet-tag-normalize-user");
+
+        createSnippet(accessToken, "Upper tag snippet", "upper-tag-content");
+
+        String requestBody = """
+                {
+                  "title": "Lower tag snippet",
+                  "content": "lower-tag-content",
+                  "language": "Java",
+                  "description": "lower-tag-description",
+                  "tags": ["java"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags[0]").value("Java"));
+
+        org.assertj.core.api.Assertions.assertThat(tagRepository.findAllByNormalizedNameIn(List.of("java")))
+                .hasSize(1);
+    }
+
+    @Test
     void deleteSnippetReturnsNoContentWhenSnippetBelongsToAuthenticatedMember() throws Exception {
         String accessToken = signupAndLogin("snippet-delete@example.com", "snippet-delete-user");
         Long snippetId = createSnippet(accessToken, "Delete title", "delete-content");
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));
+    }
+
+    @Test
+    void deleteSnippetReturnsNoContentWhenSnippetHasChildRecords() throws Exception {
+        String accessToken = signupAndLogin("snippet-delete-children@example.com", "snippet-delete-children-user");
+        Long snippetId = createSnippet(accessToken, "Delete children title", "delete-children-content");
+        createComment(accessToken, snippetId, "삭제될 댓글");
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "delete-child.txt",
+                "text/plain",
+                "delete child".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/snippets/{snippetId}/attachments", snippetId)
+                        .file(file)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/snippets/{snippetId}/analysis", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
 
         mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
