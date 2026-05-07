@@ -358,6 +358,38 @@ class SnippetControllerTest {
     }
 
     @Test
+    void getMySnippetsFiltersByKeyword() throws Exception {
+        String accessToken = signupAndLogin("snippet-search@example.com", "snippet-search-user");
+        createSnippet(accessToken, "JWT filter snippet", "Spring Security token flow");
+        createSnippet(accessToken, "Coroutine snippet", "Kotlin suspend function");
+
+        String otherUserToken = signupAndLogin("snippet-search-other@example.com", "snippet-search-other-user");
+        createSnippet(otherUserToken, "JWT hidden snippet", "other member content");
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("keyword", "token")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("JWT filter snippet"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void getMySnippetsFiltersByTagIgnoringCase() throws Exception {
+        String accessToken = signupAndLogin("snippet-tag-filter@example.com", "snippet-tag-filter-user");
+        createSnippetWithTags(accessToken, "Spring tag snippet", "spring-tag-content", "[\"Spring\", \"Security\"]");
+        createSnippetWithTags(accessToken, "Java tag snippet", "java-tag-content", "[\"Java\"]");
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("tag", "spring")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Spring tag snippet"))
+                .andExpect(jsonPath("$[0].tags", containsInAnyOrder("Spring", "Security")))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
     void getMySnippetReturnsDetailWhenSnippetBelongsToAuthenticatedMember() throws Exception {
         String accessToken = signupAndLogin("snippet-detail@example.com", "snippet-detail-user");
         Long snippetId = createSnippet(accessToken, "Detail snippet", "System.out.println('hello');");
@@ -518,15 +550,19 @@ class SnippetControllerTest {
     }
 
     private Long createSnippet(String accessToken, String title, String content) throws Exception {
+        return createSnippetWithTags(accessToken, title, content, "[\"Java\"]");
+    }
+
+    private Long createSnippetWithTags(String accessToken, String title, String content, String tagsJson) throws Exception {
         String requestBody = """
                 {
                   "title": "%s",
                   "content": "%s",
                   "language": "Java",
                   "description": "test-description",
-                  "tags": ["Java"]
+                  "tags": %s
                 }
-                """.formatted(title, content);
+                """.formatted(title, content, tagsJson);
 
         MvcResult result = mockMvc.perform(post("/api/snippets")
                         .header("Authorization", "Bearer " + accessToken)

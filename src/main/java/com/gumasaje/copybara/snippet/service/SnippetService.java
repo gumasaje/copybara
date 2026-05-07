@@ -50,8 +50,21 @@ public class SnippetService {
     }
 
     @Transactional(readOnly = true)
-    public List<SnippetSummaryResponse> getMySnippets(Long memberId) {
-        return snippetRepository.findAllByMemberIdOrderByUpdatedAtDesc(memberId).stream().map(this::toSummaryResponse).toList();
+    public List<SnippetSummaryResponse> getMySnippets(Long memberId, String keyword, String tag) {
+        String normalizedKeyword = normalizeSearchKeyword(keyword);
+        String normalizedTag = normalizeSearchTag(tag);
+
+        if (normalizedKeyword == null && normalizedTag == null) {
+            return snippetRepository.findAllByMemberIdOrderByUpdatedAtDesc(memberId)
+                    .stream()
+                    .map(this::toSummaryResponse)
+                    .toList();
+        }
+
+        return snippetRepository.searchMySnippets(memberId, normalizedKeyword, normalizedTag)
+                .stream()
+                .map(this::toSummaryResponse)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +86,20 @@ public class SnippetService {
     private Snippet findOwnedSnippet(Long memberId, Long snippetId) {
         return snippetRepository.findByIdAndMemberId(snippetId, memberId)
                 .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
+    }
+
+    private String normalizeSearchKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
+    }
+
+    private String normalizeSearchTag(String tag) {
+        if (tag == null || tag.isBlank()) {
+            return null;
+        }
+        return Tag.normalize(tag);
     }
 
     private List<Tag> resolveTags(List<String> tagNames) {
