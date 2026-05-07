@@ -24,21 +24,13 @@ public class Member {
     @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
-    @Column(length = 255)
-    private String githubRepoUrl;
-
-    @Column(length = 255)
-    private String githubAccessToken;
-
     protected Member() {
     }
 
-    public Member(String email, String password, String nickname, String githubRepoUrl, String githubAccessToken) {
+    public Member(String email, String password, String nickname) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
-        this.githubRepoUrl = githubRepoUrl;
-        this.githubAccessToken = githubAccessToken;
     }
 
     public Long getId() {
@@ -55,13 +47,5 @@ public class Member {
 
     public String getNickname() {
         return nickname;
-    }
-
-    public String getGithubRepoUrl() {
-        return githubRepoUrl;
-    }
-
-    public String getGithubAccessToken() {
-        return githubAccessToken;
     }
 }

@@ -25,4 +25,10 @@ public class GlobalExceptionHandler {
     public ErrorResponse handleInvalidLoginException(InvalidLoginException exception) {
         return new ErrorResponse("INVALID_LOGIN", exception.getMessage());
     }
+
+    @ExceptionHandler(SnippetNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleSnippetNotFoundException(SnippetNotFoundException exception) {
+        return new ErrorResponse("SNIPPET_NOT_FOUND", exception.getMessage());
+    }
 }
