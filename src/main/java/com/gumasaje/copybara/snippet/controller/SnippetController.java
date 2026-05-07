@@ -1,5 +1,7 @@
 package com.gumasaje.copybara.snippet.controller;
 
+import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
+import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
@@ -16,17 +18,20 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/snippets")
 public class SnippetController {
-
     private final SnippetService snippetService;
+    private final AttachmentService attachmentService;
 
-    public SnippetController(SnippetService snippetService) {
+    public SnippetController(SnippetService snippetService, AttachmentService attachmentService) {
         this.snippetService = snippetService;
+        this.attachmentService = attachmentService;
     }
 
     @PostMapping
@@ -59,5 +64,12 @@ public class SnippetController {
     public void delete(Authentication authentication, @PathVariable Long snippetId) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         snippetService.delete(authMember.memberId(), snippetId);
+    }
+
+    @PostMapping("/{snippetId}/attachments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AttachmentResponse uploadAttachment(Authentication authentication, @PathVariable Long snippetId, @RequestPart("file") org.springframework.web.multipart.MultipartFile file) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return attachmentService.upload(authMember.memberId(), snippetId, file);
     }
 }

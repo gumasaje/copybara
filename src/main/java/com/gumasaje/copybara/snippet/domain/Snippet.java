@@ -1,6 +1,8 @@
 package com.gumasaje.copybara.snippet.domain;
 
+import com.gumasaje.copybara.attachment.domain.Attachment;
 import com.gumasaje.copybara.member.domain.Member;
+import com.gumasaje.copybara.tag.domain.Tag;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -8,11 +10,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "snippets")
@@ -38,14 +47,24 @@ public class Snippet {
     @Column(length = 255)
     private String description;
 
+    @ManyToMany
+    @JoinTable(
+            name = "snippet_tags",
+            joinColumns = @JoinColumn(name = "snippet_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "snippet")
+    private List<Attachment> attachments = new ArrayList<>();
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    protected Snippet() {
-    }
+    protected Snippet() {}
 
     public Snippet(Member member, String title, String content, String language, String description) {
         this.member = member;
@@ -62,6 +81,11 @@ public class Snippet {
         this.description = description;
     }
 
+    public void replaceTags(List<Tag> tags) {
+        this.tags.clear();
+        this.tags.addAll(tags);
+    }
+
     @PrePersist
     void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -70,9 +94,7 @@ public class Snippet {
     }
 
     @PreUpdate
-    void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
+    void onUpdate() { this.updatedAt = LocalDateTime.now(); }
 
     public Long getId() { return id; }
     public Member getMember() { return member; }
@@ -80,6 +102,8 @@ public class Snippet {
     public String getContent() { return content; }
     public String getLanguage() { return language; }
     public String getDescription() { return description; }
+    public Set<Tag> getTags() { return tags; }
+    public List<Attachment> getAttachments() { return attachments; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }
