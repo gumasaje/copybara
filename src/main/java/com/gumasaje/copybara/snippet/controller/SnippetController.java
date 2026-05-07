@@ -1,5 +1,7 @@
 package com.gumasaje.copybara.snippet.controller;
 
+import com.gumasaje.copybara.analysis.dto.SnippetAnalysisResponse;
+import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
@@ -26,17 +28,27 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/snippets")
 public class SnippetController {
+
     private final SnippetService snippetService;
     private final AttachmentService attachmentService;
+    private final SnippetAnalysisService snippetAnalysisService;
 
-    public SnippetController(SnippetService snippetService, AttachmentService attachmentService) {
+    public SnippetController(
+            SnippetService snippetService,
+            AttachmentService attachmentService,
+            SnippetAnalysisService snippetAnalysisService
+    ) {
         this.snippetService = snippetService;
         this.attachmentService = attachmentService;
+        this.snippetAnalysisService = snippetAnalysisService;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SnippetDetailResponse create(Authentication authentication, @Valid @RequestBody SnippetCreateRequest request) {
+    public SnippetDetailResponse create(
+            Authentication authentication,
+            @Valid @RequestBody SnippetCreateRequest request
+    ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.create(authMember.memberId(), request);
     }
@@ -48,13 +60,20 @@ public class SnippetController {
     }
 
     @GetMapping("/{snippetId}")
-    public SnippetDetailResponse getMySnippet(Authentication authentication, @PathVariable Long snippetId) {
+    public SnippetDetailResponse getMySnippet(
+            Authentication authentication,
+            @PathVariable Long snippetId
+    ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.getMySnippet(authMember.memberId(), snippetId);
     }
 
     @PutMapping("/{snippetId}")
-    public SnippetDetailResponse update(Authentication authentication, @PathVariable Long snippetId, @Valid @RequestBody SnippetCreateRequest request) {
+    public SnippetDetailResponse update(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @Valid @RequestBody SnippetCreateRequest request
+    ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.update(authMember.memberId(), snippetId, request);
     }
@@ -68,8 +87,24 @@ public class SnippetController {
 
     @PostMapping("/{snippetId}/attachments")
     @ResponseStatus(HttpStatus.CREATED)
-    public AttachmentResponse uploadAttachment(Authentication authentication, @PathVariable Long snippetId, @RequestPart("file") org.springframework.web.multipart.MultipartFile file) {
+    public AttachmentResponse uploadAttachment(
+            Authentication authentication,
+            @PathVariable Long snippetId,
+            @RequestPart("file") MultipartFile file
+    ) {
         AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return attachmentService.upload(authMember.memberId(), snippetId, file);
+    }
+
+    @PostMapping("/{snippetId}/analysis")
+    public SnippetAnalysisResponse analyze(Authentication authentication, @PathVariable Long snippetId) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return snippetAnalysisService.analyze(authMember.memberId(), snippetId);
+    }
+
+    @GetMapping("/{snippetId}/analysis")
+    public SnippetAnalysisResponse getAnalysis(Authentication authentication, @PathVariable Long snippetId) {
+        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+        return snippetAnalysisService.getAnalysis(authMember.memberId(), snippetId);
     }
 }
