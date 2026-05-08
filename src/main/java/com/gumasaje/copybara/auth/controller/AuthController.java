@@ -9,7 +9,7 @@ import com.gumasaje.copybara.auth.service.AuthMember;
 import com.gumasaje.copybara.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,8 +39,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public MeResponse me(Authentication authentication) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+    public MeResponse me(@AuthenticationPrincipal AuthMember authMember) {
         return authService.getMe(authMember.memberId());
     }
 }

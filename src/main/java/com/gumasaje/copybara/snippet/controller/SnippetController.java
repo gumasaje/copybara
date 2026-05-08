@@ -22,7 +22,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -60,88 +60,79 @@ public class SnippetController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public SnippetDetailResponse create(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @Valid @RequestBody SnippetCreateRequest request
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.create(authMember.memberId(), request);
     }
 
     @GetMapping
     public List<SnippetSummaryResponse> getMySnippets(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String tag
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.getMySnippets(authMember.memberId(), keyword, tag);
     }
 
     @GetMapping("/{snippetId}")
     public SnippetDetailResponse getMySnippet(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.getMySnippet(authMember.memberId(), snippetId);
     }
 
     @PutMapping("/{snippetId}")
     public SnippetDetailResponse update(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @Valid @RequestBody SnippetCreateRequest request
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.update(authMember.memberId(), snippetId, request);
     }
 
     @DeleteMapping("/{snippetId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(Authentication authentication, @PathVariable Long snippetId) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+    public void delete(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
         snippetService.delete(authMember.memberId(), snippetId);
     }
 
     @PutMapping("/{snippetId}/favorite")
     public SnippetDetailResponse updateFavorite(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @Valid @RequestBody SnippetFavoriteRequest request
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return snippetService.updateFavorite(authMember.memberId(), snippetId, request);
     }
 
     @PostMapping("/{snippetId}/attachments")
     @ResponseStatus(HttpStatus.CREATED)
     public AttachmentResponse uploadAttachment(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @RequestPart("file") MultipartFile file
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return attachmentService.upload(authMember.memberId(), snippetId, file);
     }
 
     @DeleteMapping("/{snippetId}/attachments/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttachment(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @PathVariable Long attachmentId
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         attachmentService.delete(authMember.memberId(), snippetId, attachmentId);
     }
 
     @GetMapping("/{snippetId}/attachments/{attachmentId}/download")
     public ResponseEntity<Resource> downloadAttachment(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @PathVariable Long attachmentId
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         AttachmentDownload download = attachmentService.download(authMember.memberId(), snippetId, attachmentId);
 
         return ResponseEntity.ok()
@@ -157,51 +148,45 @@ public class SnippetController {
     @PostMapping("/{snippetId}/memos")
     @ResponseStatus(HttpStatus.CREATED)
     public MemoResponse createMemo(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @Valid @RequestBody MemoCreateRequest request
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return memoService.create(authMember.memberId(), snippetId, request);
     }
 
     @GetMapping("/{snippetId}/memos")
-    public List<MemoResponse> getMemos(Authentication authentication, @PathVariable Long snippetId) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+    public List<MemoResponse> getMemos(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
         return memoService.getMemos(authMember.memberId(), snippetId);
     }
 
     @PutMapping("/{snippetId}/memos/{memoId}")
     public MemoResponse updateMemo(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @PathVariable Long memoId,
             @Valid @RequestBody MemoCreateRequest request
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         return memoService.update(authMember.memberId(), snippetId, memoId, request);
     }
 
     @DeleteMapping("/{snippetId}/memos/{memoId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMemo(
-            Authentication authentication,
+            @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
             @PathVariable Long memoId
     ) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
         memoService.delete(authMember.memberId(), snippetId, memoId);
     }
 
     @PostMapping("/{snippetId}/analysis")
-    public SnippetAnalysisResponse analyze(Authentication authentication, @PathVariable Long snippetId) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+    public SnippetAnalysisResponse analyze(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
         return snippetAnalysisService.analyze(authMember.memberId(), snippetId);
     }
 
     @GetMapping("/{snippetId}/analysis")
-    public SnippetAnalysisResponse getAnalysis(Authentication authentication, @PathVariable Long snippetId) {
-        AuthMember authMember = (AuthMember) authentication.getPrincipal();
+    public SnippetAnalysisResponse getAnalysis(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
         return snippetAnalysisService.getAnalysis(authMember.memberId(), snippetId);
     }
 }
