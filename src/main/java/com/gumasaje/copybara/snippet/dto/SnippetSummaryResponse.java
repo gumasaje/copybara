@@ -1,5 +1,6 @@
 package com.gumasaje.copybara.snippet.dto;
 
+import com.gumasaje.copybara.category.dto.CategorySummaryResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -8,6 +9,7 @@ public record SnippetSummaryResponse(
         String title,
         String language,
         String description,
+        CategorySummaryResponse category,
         boolean favorite,
         List<String> tags,
         LocalDateTime createdAt,

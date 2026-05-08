@@ -18,5 +18,7 @@ public record SnippetCreateRequest(
         @Size(max = 255, message = "설명은 255자 이하여야 합니다.")
         String description,
 
+        Long categoryId,
+
         List<@NotBlank(message = "태그 이름은 비어 있을 수 없습니다.") @Size(max = 50, message = "태그 이름은 50자 이하여야 합니다.") String> tags
 ) {}

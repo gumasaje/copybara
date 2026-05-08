@@ -2,6 +2,9 @@ package com.gumasaje.copybara.snippet.service;
 
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
+import com.gumasaje.copybara.category.domain.Category;
+import com.gumasaje.copybara.category.dto.CategorySummaryResponse;
+import com.gumasaje.copybara.category.service.CategoryService;
 import com.gumasaje.copybara.common.exception.InvalidLoginException;
 import com.gumasaje.copybara.common.exception.SnippetNotFoundException;
 import com.gumasaje.copybara.member.domain.Member;
@@ -29,40 +32,57 @@ public class SnippetService {
     private final MemberRepository memberRepository;
     private final TagRepository tagRepository;
     private final AttachmentService attachmentService;
+    private final CategoryService categoryService;
 
     public SnippetService(
             SnippetRepository snippetRepository,
             MemberRepository memberRepository,
             TagRepository tagRepository,
-            AttachmentService attachmentService
+            AttachmentService attachmentService,
+            CategoryService categoryService
     ) {
         this.snippetRepository = snippetRepository;
         this.memberRepository = memberRepository;
         this.tagRepository = tagRepository;
         this.attachmentService = attachmentService;
+        this.categoryService = categoryService;
     }
 
     public SnippetDetailResponse create(Long memberId, SnippetCreateRequest request) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new InvalidLoginException("인증된 회원 정보를 찾을 수 없습니다."));
-        Snippet snippet = new Snippet(member, request.title(), request.content(), request.language(), request.description());
+        Snippet snippet = new Snippet(
+                member,
+                resolveCategory(memberId, request.categoryId()),
+                request.title(),
+                request.content(),
+                request.language(),
+                request.description()
+        );
         snippet.replaceTags(resolveTags(request.tags()));
         return toDetailResponse(snippetRepository.save(snippet));
     }
 
     @Transactional(readOnly = true)
-    public List<SnippetSummaryResponse> getMySnippets(Long memberId, String keyword, String tag) {
+    public List<SnippetSummaryResponse> getMySnippets(Long memberId, String keyword, String tag, Long categoryId) {
         String normalizedKeyword = normalizeSearchKeyword(keyword);
         String normalizedTag = normalizeSearchTag(tag);
 
+        if (categoryId != null) {
+            categoryService.findOwnedCategory(memberId, categoryId);
+        }
+
         if (normalizedKeyword == null && normalizedTag == null) {
-            return snippetRepository.findAllByMemberIdOrderByUpdatedAtDesc(memberId)
+            List<Snippet> snippets = categoryId == null
+                    ? snippetRepository.findAllByMemberIdOrderByUpdatedAtDesc(memberId)
+                    : snippetRepository.findAllByMemberIdAndCategoryIdOrderByUpdatedAtDesc(memberId, categoryId);
+            return snippets
                     .stream()
                     .map(this::toSummaryResponse)
                     .toList();
         }
 
-        return snippetRepository.searchMySnippets(memberId, normalizedKeyword, normalizedTag)
+        return snippetRepository.searchMySnippets(memberId, categoryId, normalizedKeyword, normalizedTag)
                 .stream()
                 .map(this::toSummaryResponse)
                 .toList();
@@ -75,7 +95,13 @@ public class SnippetService {
 
     public SnippetDetailResponse update(Long memberId, Long snippetId, SnippetCreateRequest request) {
         Snippet snippet = findOwnedSnippet(memberId, snippetId);
-        snippet.update(request.title(), request.content(), request.language(), request.description());
+        snippet.update(
+                resolveCategory(memberId, request.categoryId()),
+                request.title(),
+                request.content(),
+                request.language(),
+                request.description()
+        );
         snippet.replaceTags(resolveTags(request.tags()));
         return toDetailResponse(snippet);
     }
@@ -109,6 +135,13 @@ public class SnippetService {
         return Tag.normalize(tag);
     }
 
+    private Category resolveCategory(Long memberId, Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryService.findOwnedCategory(memberId, categoryId);
+    }
+
     private List<Tag> resolveTags(List<String> tagNames) {
         if (tagNames == null || tagNames.isEmpty()) return List.of();
         Map<String, String> normalizedTagNames = new LinkedHashMap<>();
@@ -131,15 +164,44 @@ public class SnippetService {
     }
 
     private SnippetSummaryResponse toSummaryResponse(Snippet snippet) {
-        return new SnippetSummaryResponse(snippet.getId(), snippet.getTitle(), snippet.getLanguage(), snippet.getDescription(), snippet.isFavorite(), extractTagNames(snippet), snippet.getCreatedAt(), snippet.getUpdatedAt());
+        return new SnippetSummaryResponse(
+                snippet.getId(),
+                snippet.getTitle(),
+                snippet.getLanguage(),
+                snippet.getDescription(),
+                extractCategory(snippet),
+                snippet.isFavorite(),
+                extractTagNames(snippet),
+                snippet.getCreatedAt(),
+                snippet.getUpdatedAt()
+        );
     }
 
     private SnippetDetailResponse toDetailResponse(Snippet snippet) {
-        return new SnippetDetailResponse(snippet.getId(), snippet.getTitle(), snippet.getContent(), snippet.getLanguage(), snippet.getDescription(), snippet.isFavorite(), extractTagNames(snippet), extractAttachments(snippet), snippet.getCreatedAt(), snippet.getUpdatedAt());
+        return new SnippetDetailResponse(
+                snippet.getId(),
+                snippet.getTitle(),
+                snippet.getContent(),
+                snippet.getLanguage(),
+                snippet.getDescription(),
+                extractCategory(snippet),
+                snippet.isFavorite(),
+                extractTagNames(snippet),
+                extractAttachments(snippet),
+                snippet.getCreatedAt(),
+                snippet.getUpdatedAt()
+        );
     }
 
     private List<String> extractTagNames(Snippet snippet) {
         return snippet.getTags().stream().map(Tag::getName).toList();
+    }
+
+    private CategorySummaryResponse extractCategory(Snippet snippet) {
+        if (snippet.getCategory() == null) {
+            return null;
+        }
+        return categoryService.toSummaryResponse(snippet.getCategory());
     }
 
     private List<AttachmentResponse> extractAttachments(Snippet snippet) {

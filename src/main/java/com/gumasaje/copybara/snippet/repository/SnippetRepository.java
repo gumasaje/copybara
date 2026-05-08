@@ -11,11 +11,16 @@ public interface SnippetRepository extends JpaRepository<Snippet, Long> {
 
     List<Snippet> findAllByMemberIdOrderByUpdatedAtDesc(Long memberId);
 
+    List<Snippet> findAllByMemberIdAndCategoryIdOrderByUpdatedAtDesc(Long memberId, Long categoryId);
+
+    long countByMemberIdAndCategoryId(Long memberId, Long categoryId);
+
     @Query("""
             select distinct s
             from Snippet s
             left join s.tags t
             where s.member.id = :memberId
+              and (:categoryId is null or s.category.id = :categoryId)
               and (
                 :keyword is null
                 or lower(s.title) like lower(concat('%', :keyword, '%'))
@@ -27,6 +32,7 @@ public interface SnippetRepository extends JpaRepository<Snippet, Long> {
             """)
     List<Snippet> searchMySnippets(
             @Param("memberId") Long memberId,
+            @Param("categoryId") Long categoryId,
             @Param("keyword") String keyword,
             @Param("normalizedTag") String normalizedTag
     );

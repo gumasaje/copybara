@@ -2,6 +2,7 @@ package com.gumasaje.copybara.snippet.domain;
 
 import com.gumasaje.copybara.analysis.domain.SnippetAnalysis;
 import com.gumasaje.copybara.attachment.domain.Attachment;
+import com.gumasaje.copybara.category.domain.Category;
 import com.gumasaje.copybara.memo.domain.Memo;
 import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.tag.domain.Tag;
@@ -51,6 +52,10 @@ public class Snippet {
     @Column(length = 255)
     private String description;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @Column(nullable = false)
     private boolean favorite;
 
@@ -79,19 +84,25 @@ public class Snippet {
 
     protected Snippet() {}
 
-    public Snippet(Member member, String title, String content, String language, String description) {
+    public Snippet(Member member, Category category, String title, String content, String language, String description) {
         this.member = member;
+        this.category = category;
         this.title = title;
         this.content = content;
         this.language = language;
         this.description = description;
     }
 
-    public void update(String title, String content, String language, String description) {
+    public void update(Category category, String title, String content, String language, String description) {
+        this.category = category;
         this.title = title;
         this.content = content;
         this.language = language;
         this.description = description;
+    }
+
+    public void clearCategory() {
+        this.category = null;
     }
 
     public void replaceTags(List<Tag> tags) {
@@ -119,6 +130,7 @@ public class Snippet {
     public String getContent() { return content; }
     public String getLanguage() { return language; }
     public String getDescription() { return description; }
+    public Category getCategory() { return category; }
     public boolean isFavorite() { return favorite; }
     public Set<Tag> getTags() { return tags; }
     public List<Attachment> getAttachments() { return attachments; }

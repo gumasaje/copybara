@@ -21,6 +21,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("DUPLICATE_NICKNAME", exception.getMessage());
     }
 
+    @ExceptionHandler(DuplicateCategoryNameException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleDuplicateCategoryNameException(DuplicateCategoryNameException exception) {
+        return new ErrorResponse("DUPLICATE_CATEGORY_NAME", exception.getMessage());
+    }
+
     @ExceptionHandler(InvalidLoginException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ErrorResponse handleInvalidLoginException(InvalidLoginException exception) {
@@ -31,6 +37,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleSnippetNotFoundException(SnippetNotFoundException exception) {
         return new ErrorResponse("SNIPPET_NOT_FOUND", exception.getMessage());
+    }
+
+    @ExceptionHandler(CategoryNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleCategoryNotFoundException(CategoryNotFoundException exception) {
+        return new ErrorResponse("CATEGORY_NOT_FOUND", exception.getMessage());
     }
 
     @ExceptionHandler(SnippetAnalysisNotFoundException.class)

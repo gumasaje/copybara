@@ -70,9 +70,10 @@ public class SnippetController {
     public List<SnippetSummaryResponse> getMySnippets(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String tag
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) Long categoryId
     ) {
-        return snippetService.getMySnippets(authMember.memberId(), keyword, tag);
+        return snippetService.getMySnippets(authMember.memberId(), keyword, tag, categoryId);
     }
 
     @GetMapping("/{snippetId}")

@@ -2,6 +2,7 @@ package com.gumasaje.copybara.snippet.controller;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -43,6 +44,7 @@ class SnippetControllerTest {
                   "content": "public class Example {}",
                   "language": "Java",
                   "description": "JWT 인증 필터 예제",
+                  "categoryId": null,
                   "tags": ["Spring", "Security"]
                 }
                 """;
@@ -56,6 +58,7 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.title").value("JWT filter example"))
                 .andExpect(jsonPath("$.language").value("Java"))
                 .andExpect(jsonPath("$.description").value("JWT 인증 필터 예제"))
+                .andExpect(jsonPath("$.category").value(nullValue()))
                 .andExpect(jsonPath("$.favorite").value(false))
                 .andExpect(jsonPath("$.tags[0]").value("Spring"))
                 .andExpect(jsonPath("$.tags[1]").value("Security"))
@@ -72,6 +75,7 @@ class SnippetControllerTest {
                   "content": "validation-content",
                   "language": "Java",
                   "description": "validation-description",
+                  "categoryId": null,
                   "tags": ["Java"]
                 }
                 """;
@@ -373,6 +377,24 @@ class SnippetControllerTest {
     }
 
     @Test
+    void getMySnippetsFiltersByCategoryId() throws Exception {
+        String accessToken = signupAndLogin("snippet-category-filter@example.com", "snippet-category-filter-user");
+        Long backendCategoryId = createCategory(accessToken, "백엔드");
+        Long algorithmCategoryId = createCategory(accessToken, "알고리즘");
+        createSnippet(accessToken, "Backend snippet", "backend-content", backendCategoryId);
+        createSnippet(accessToken, "Algorithm snippet", "algorithm-content", algorithmCategoryId);
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("categoryId", String.valueOf(backendCategoryId))
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Backend snippet"))
+                .andExpect(jsonPath("$[0].category.categoryId").value(backendCategoryId))
+                .andExpect(jsonPath("$[0].category.name").value("백엔드"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
     void getMySnippetsFiltersByTagIgnoringCase() throws Exception {
         String accessToken = signupAndLogin("snippet-tag-filter@example.com", "snippet-tag-filter-user");
         createSnippetWithTags(accessToken, "Spring tag snippet", "spring-tag-content", "[\"Spring\", \"Security\"]");
@@ -398,6 +420,7 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.snippetId").value(snippetId))
                 .andExpect(jsonPath("$.title").value("Detail snippet"))
                 .andExpect(jsonPath("$.content").value("System.out.println('hello');"))
+                .andExpect(jsonPath("$.category").value(nullValue()))
                 .andExpect(jsonPath("$.favorite").value(false))
                 .andExpect(jsonPath("$.tags[0]").value("Java"));
     }
@@ -458,6 +481,7 @@ class SnippetControllerTest {
                   "content": "updated-content",
                   "language": "Kotlin",
                   "description": "updated-description",
+                  "categoryId": null,
                   "tags": ["Kotlin", "Backend"]
                 }
                 """;
@@ -487,6 +511,7 @@ class SnippetControllerTest {
                   "content": "lower-tag-content",
                   "language": "Java",
                   "description": "lower-tag-description",
+                  "categoryId": null,
                   "tags": ["java"]
                 }
                 """;
@@ -594,19 +619,28 @@ class SnippetControllerTest {
     }
 
     private Long createSnippet(String accessToken, String title, String content) throws Exception {
-        return createSnippetWithTags(accessToken, title, content, "[\"Java\"]");
+        return createSnippet(accessToken, title, content, null);
+    }
+
+    private Long createSnippet(String accessToken, String title, String content, Long categoryId) throws Exception {
+        return createSnippet(accessToken, title, content, categoryId, "[\"Java\"]");
     }
 
     private Long createSnippetWithTags(String accessToken, String title, String content, String tagsJson) throws Exception {
+        return createSnippet(accessToken, title, content, null, tagsJson);
+    }
+
+    private Long createSnippet(String accessToken, String title, String content, Long categoryId, String tagsJson) throws Exception {
         String requestBody = """
                 {
                   "title": "%s",
                   "content": "%s",
                   "language": "Java",
                   "description": "test-description",
+                  "categoryId": %s,
                   "tags": %s
                 }
-                """.formatted(title, content, tagsJson);
+                """.formatted(title, content, categoryId == null ? "null" : categoryId.toString(), tagsJson);
 
         MvcResult result = mockMvc.perform(post("/api/snippets")
                         .header("Authorization", "Bearer " + accessToken)
@@ -616,6 +650,21 @@ class SnippetControllerTest {
                 .andReturn();
 
         return extractSnippetId(result.getResponse().getContentAsString());
+    }
+
+    private Long createCategory(String accessToken, String name) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/categories")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "%s"
+                                }
+                                """.formatted(name)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return extractLongValue(result.getResponse().getContentAsString(), "categoryId");
     }
 
     private Long createMemo(String accessToken, Long snippetId, String content) throws Exception {
