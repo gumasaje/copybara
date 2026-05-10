@@ -110,7 +110,6 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allSnippets, setAllSnippets] = useState<SnippetSummary[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(null);
   const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
   const [snippetDetail, setSnippetDetail] = useState<SnippetDetail | null>(null);
@@ -196,10 +195,6 @@ export default function App() {
     if (!user) return;
     void refreshWorkspace();
   }, [user, keyword]);
-
-  useEffect(() => {
-    setOpenFolderMenuId(null);
-  }, [selectedCategoryId]);
 
   useEffect(() => {
     setOpenSidebarSnippetMenuId(null);
@@ -313,7 +308,7 @@ export default function App() {
     setEditingSnippet(null);
     setFormState({
       ...DEFAULT_FORM,
-      categoryId: selectedCategoryId
+      categoryId: null
     });
     setShowComposer(true);
   }
@@ -407,9 +402,6 @@ export default function App() {
       tone: "danger",
       onConfirm: async () => {
         await api.deleteCategory(category.categoryId);
-        if (selectedCategoryId === category.categoryId) {
-          setSelectedCategoryId(null);
-        }
         await refreshWorkspace();
       }
     });
@@ -507,7 +499,6 @@ export default function App() {
   function goHome() {
     setKeyword("");
     setSearchInput("");
-    setSelectedCategoryId(null);
     setExpandedCategories(new Set());
     setIsRecentsExpanded(true);
     setIsViewingAll(false);
@@ -725,7 +716,7 @@ export default function App() {
         <div className="sidebar-top-wrapper">
           <div className="pane-header nav-header">
             <div className="header-logo-group">
-              <button className="brand-button" onClick={goHome} title="홈으로 이동">
+              <button className="brand-button" onClick={goHome} data-tooltip="Home">
                 <h2>Copybara</h2>
               </button>
               <button className="icon-button ghost" onClick={() => setIsSidebarOpen(false)} data-tooltip="Hide sidebar · Ctrl/Cmd+B">
@@ -814,7 +805,6 @@ export default function App() {
                                 onClick={(event) => {
                                   toggleSidebarSnippetMenu(sidebarSnippetMenuKey("favorites", snippet.snippetId), event.currentTarget);
                                 }}
-                                title="스니펫 메뉴"
                               >
                                 <MoreHorizontal size={14} />
                               </button>
@@ -882,7 +872,6 @@ export default function App() {
                     className="view-all-button"
                     onClick={() => {
                       setIsViewingAll(true);
-                      setSelectedCategoryId(null);
                       setIsRecentsExpanded(true);
                     }}
                   >
@@ -913,7 +902,6 @@ export default function App() {
                           onClick={(event) => {
                             toggleSidebarSnippetMenu(sidebarSnippetMenuKey("recents", snippet.snippetId), event.currentTarget);
                           }}
-                          title="스니펫 메뉴"
                         >
                           <MoreHorizontal size={14} />
                         </button>
@@ -1063,7 +1051,6 @@ export default function App() {
                                   onClick={(event) => {
                                     toggleSidebarSnippetMenu(sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId), event.currentTarget);
                                   }}
-                                  title="스니펫 메뉴"
                                 >
                                   <MoreHorizontal size={14} />
                                 </button>
