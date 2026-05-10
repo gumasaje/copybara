@@ -118,6 +118,12 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
+  moveSnippetCategory(snippetId: number, categoryId: number | null) {
+    return request<SnippetDetail>(`/api/snippets/${snippetId}/category`, {
+      method: "PATCH",
+      body: JSON.stringify({ categoryId })
+    });
+  },
   deleteSnippet(snippetId: number) {
     return request<void>(`/api/snippets/${snippetId}`, { method: "DELETE" });
   },

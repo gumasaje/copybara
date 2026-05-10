@@ -1538,6 +1538,65 @@ button {
   padding: 10px 12px;
 }
 
+.folder-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.folder-choice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #23252a;
+  border-radius: 12px;
+  background: #111318;
+  color: #f7f8f8;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.folder-choice:hover {
+  border-color: #3a404a;
+  background: #151922;
+}
+
+.folder-choice.selected {
+  border-color: #5e6ad2;
+  background: rgba(94, 106, 210, 0.14);
+}
+
+.folder-choice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.folder-choice-copy strong {
+  color: #f7f8f8;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.folder-choice-copy span {
+  color: #8a8f98;
+  font-size: 12px;
+}
+
+.folder-choice-badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(94, 106, 210, 0.22);
+  color: #dbe0ff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .context-field {
   display: flex;
   flex-direction: column;

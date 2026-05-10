@@ -6,6 +6,7 @@ import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
+import com.gumasaje.copybara.snippet.dto.SnippetCategoryMoveRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetFavoriteRequest;
@@ -25,6 +26,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -87,6 +89,15 @@ public class SnippetController {
             @Valid @RequestBody SnippetCreateRequest request
     ) {
         return snippetService.update(authMember.memberId(), snippetId, request);
+    }
+
+    @PatchMapping("/{snippetId}/category")
+    public SnippetDetailResponse moveCategory(
+            @AuthenticationPrincipal AuthMember authMember,
+            @PathVariable Long snippetId,
+            @RequestBody SnippetCategoryMoveRequest request
+    ) {
+        return snippetService.moveCategory(authMember.memberId(), snippetId, request);
     }
 
     @DeleteMapping("/{snippetId}")

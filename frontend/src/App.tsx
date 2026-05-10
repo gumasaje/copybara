@@ -152,7 +152,7 @@ export default function App() {
   const isSearchMode = keyword.trim().length > 0;
 
   const uncategorizedSnippets = useMemo(() => {
-    return allSnippets.filter((s) => s.category == null);
+    return allSnippets.filter((s) => s.category == null && !s.favorite);
   }, [allSnippets]);
 
   const favoriteSnippets = useMemo(() => {
@@ -189,6 +189,10 @@ export default function App() {
     };
     bootstrap();
   }, [token]);
+
+  useEffect(() => {
+    setAuthError(null);
+  }, [authMode]);
 
   useEffect(() => {
     if (!user) return;
@@ -526,13 +530,15 @@ export default function App() {
         ? snippetDetail
         : await api.getSnippet(snippetId);
 
-    const updated = await api.updateSnippet(snippetId, {
-      title: changes.title ?? base.title,
-      content: base.content,
-      language: base.language ?? "Text",
-      categoryId: changes.categoryId !== undefined ? changes.categoryId : base.category?.categoryId ?? null,
-      tags: base.tags
-    });
+    const updated = changes.categoryId !== undefined
+      ? await api.moveSnippetCategory(snippetId, changes.categoryId)
+      : await api.updateSnippet(snippetId, {
+          title: changes.title ?? base.title,
+          content: base.content,
+          language: base.language ?? "Text",
+          categoryId: base.category?.categoryId ?? null,
+          tags: base.tags
+        });
 
     if (changes.favorite !== undefined) {
       await api.updateFavorite(snippetId, changes.favorite);
@@ -580,7 +586,15 @@ export default function App() {
         if (!nextTitle) return;
         await updateSnippetMeta(snippetModalTarget.snippetId, { title: nextTitle });
       } else {
-        await updateSnippetMeta(snippetModalTarget.snippetId, { categoryId: snippetMoveCategoryId });
+        const moved = await updateSnippetMeta(snippetModalTarget.snippetId, { categoryId: snippetMoveCategoryId });
+        setSelectedSnippetId(moved.snippetId);
+        if (moved.category?.categoryId != null) {
+          setExpandedCategories((prev) => new Set(prev).add(moved.category!.categoryId));
+          setSelectedSidebarScope(`folder-${moved.category.categoryId}`);
+        } else {
+          setIsRecentsExpanded(true);
+          setSelectedSidebarScope("recents");
+        }
       }
       closeSnippetModal();
     } catch (error) {
@@ -1445,20 +1459,36 @@ export default function App() {
                 />
               </label>
             ) : (
-              <label className="modal-field">
+              <div className="modal-field">
                 <span>Folder</span>
-                <select
-                  value={snippetMoveCategoryId ?? ""}
-                  onChange={(event) => setSnippetMoveCategoryId(event.target.value ? Number(event.target.value) : null)}
-                >
-                  <option value="">No folder</option>
+                <div className="folder-choice-list">
+                  <button
+                    type="button"
+                    className={`folder-choice ${snippetMoveCategoryId == null ? "selected" : ""}`}
+                    onClick={() => setSnippetMoveCategoryId(null)}
+                  >
+                    <div className="folder-choice-copy">
+                      <strong>No folder</strong>
+                      <span>Keep this snippet in Recents.</span>
+                    </div>
+                    {snippetMoveCategoryId == null && <span className="folder-choice-badge">Selected</span>}
+                  </button>
                   {categories.map((category) => (
-                    <option key={category.categoryId} value={category.categoryId}>
-                      {category.name}
-                    </option>
+                    <button
+                      type="button"
+                      key={category.categoryId}
+                      className={`folder-choice ${snippetMoveCategoryId === category.categoryId ? "selected" : ""}`}
+                      onClick={() => setSnippetMoveCategoryId(category.categoryId)}
+                    >
+                      <div className="folder-choice-copy">
+                        <strong>{category.name}</strong>
+                        <span>{category.snippetCount} snippet{category.snippetCount === 1 ? "" : "s"}</span>
+                      </div>
+                      {snippetMoveCategoryId === category.categoryId && <span className="folder-choice-badge">Selected</span>}
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
             )}
 
             <div className="composer-actions">

@@ -11,6 +11,7 @@ import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.member.repository.MemberRepository;
 import com.gumasaje.copybara.snippet.domain.Snippet;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
+import com.gumasaje.copybara.snippet.dto.SnippetCategoryMoveRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetFavoriteRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetNotesRequest;
@@ -113,6 +114,17 @@ public class SnippetService {
     public SnippetDetailResponse updateFavorite(Long memberId, Long snippetId, SnippetFavoriteRequest request) {
         Snippet snippet = findOwnedSnippet(memberId, snippetId);
         snippet.updateFavorite(request.favorite());
+        return toDetailResponse(snippet);
+    }
+
+    public SnippetDetailResponse moveCategory(Long memberId, Long snippetId, SnippetCategoryMoveRequest request) {
+        Snippet snippet = findOwnedSnippet(memberId, snippetId);
+        snippet.update(
+                resolveCategory(memberId, request.categoryId()),
+                snippet.getTitle(),
+                snippet.getContent(),
+                snippet.getLanguage()
+        );
         return toDetailResponse(snippet);
     }
 

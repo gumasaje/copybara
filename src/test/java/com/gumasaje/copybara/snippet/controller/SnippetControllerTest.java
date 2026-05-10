@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -346,6 +347,65 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$[0].category.categoryId").value(backendCategoryId))
                 .andExpect(jsonPath("$[0].category.name").value("백엔드"))
                 .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void moveCategoryReturnsUpdatedDetailWhenSnippetBelongsToAuthenticatedMember() throws Exception {
+        String accessToken = signupAndLogin("snippet-category-move@example.com", "snippet-category-move-user");
+        Long sourceCategoryId = createCategory(accessToken, "백엔드");
+        Long targetCategoryId = createCategory(accessToken, "알고리즘");
+        Long snippetId = createSnippet(accessToken, "Move snippet", "move-content", sourceCategoryId);
+
+        mockMvc.perform(patch("/api/snippets/{snippetId}/category", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryId": %d
+                                }
+                                """.formatted(targetCategoryId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.category.categoryId").value(targetCategoryId))
+                .andExpect(jsonPath("$.category.name").value("알고리즘"));
+    }
+
+    @Test
+    void moveCategoryClearsCategoryWhenCategoryIdIsNull() throws Exception {
+        String accessToken = signupAndLogin("snippet-category-clear@example.com", "snippet-category-clear-user");
+        Long categoryId = createCategory(accessToken, "백엔드");
+        Long snippetId = createSnippet(accessToken, "Clear category snippet", "clear-category-content", categoryId);
+
+        mockMvc.perform(patch("/api/snippets/{snippetId}/category", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryId": null
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.category").value(nullValue()));
+    }
+
+    @Test
+    void moveCategoryReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
+        String ownerToken = signupAndLogin("snippet-category-move-owner@example.com", "snippet-category-move-owner");
+        Long categoryId = createCategory(ownerToken, "백엔드");
+        Long snippetId = createSnippet(ownerToken, "Move owner snippet", "move-owner-content", categoryId);
+        String otherUserToken = signupAndLogin("snippet-category-move-other@example.com", "snippet-category-move-other");
+
+        mockMvc.perform(patch("/api/snippets/{snippetId}/category", snippetId)
+                        .header("Authorization", "Bearer " + otherUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryId": null
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));
     }
 
     @Test
