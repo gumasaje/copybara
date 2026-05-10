@@ -6,12 +6,11 @@ import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
 import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
 import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
-import com.gumasaje.copybara.memo.dto.MemoCreateRequest;
-import com.gumasaje.copybara.memo.dto.MemoResponse;
-import com.gumasaje.copybara.memo.service.MemoService;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetFavoriteRequest;
+import com.gumasaje.copybara.snippet.dto.SnippetNotesRequest;
+import com.gumasaje.copybara.snippet.dto.SnippetNotesResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
 import com.gumasaje.copybara.snippet.service.SnippetService;
 import jakarta.validation.Valid;
@@ -43,18 +42,15 @@ public class SnippetController {
     private final SnippetService snippetService;
     private final AttachmentService attachmentService;
     private final SnippetAnalysisService snippetAnalysisService;
-    private final MemoService memoService;
 
     public SnippetController(
             SnippetService snippetService,
             AttachmentService attachmentService,
-            SnippetAnalysisService snippetAnalysisService,
-            MemoService memoService
+            SnippetAnalysisService snippetAnalysisService
     ) {
         this.snippetService = snippetService;
         this.attachmentService = attachmentService;
         this.snippetAnalysisService = snippetAnalysisService;
-        this.memoService = memoService;
     }
 
     @PostMapping
@@ -146,39 +142,13 @@ public class SnippetController {
                 .body(download.resource());
     }
 
-    @PostMapping("/{snippetId}/memos")
-    @ResponseStatus(HttpStatus.CREATED)
-    public MemoResponse createMemo(
+    @PutMapping("/{snippetId}/notes")
+    public SnippetNotesResponse updateNotes(
             @AuthenticationPrincipal AuthMember authMember,
             @PathVariable Long snippetId,
-            @Valid @RequestBody MemoCreateRequest request
+            @Valid @RequestBody SnippetNotesRequest request
     ) {
-        return memoService.create(authMember.memberId(), snippetId, request);
-    }
-
-    @GetMapping("/{snippetId}/memos")
-    public List<MemoResponse> getMemos(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
-        return memoService.getMemos(authMember.memberId(), snippetId);
-    }
-
-    @PutMapping("/{snippetId}/memos/{memoId}")
-    public MemoResponse updateMemo(
-            @AuthenticationPrincipal AuthMember authMember,
-            @PathVariable Long snippetId,
-            @PathVariable Long memoId,
-            @Valid @RequestBody MemoCreateRequest request
-    ) {
-        return memoService.update(authMember.memberId(), snippetId, memoId, request);
-    }
-
-    @DeleteMapping("/{snippetId}/memos/{memoId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteMemo(
-            @AuthenticationPrincipal AuthMember authMember,
-            @PathVariable Long snippetId,
-            @PathVariable Long memoId
-    ) {
-        memoService.delete(authMember.memberId(), snippetId, memoId);
+        return snippetService.updateNotes(authMember.memberId(), snippetId, request);
     }
 
     @PostMapping("/{snippetId}/analysis")

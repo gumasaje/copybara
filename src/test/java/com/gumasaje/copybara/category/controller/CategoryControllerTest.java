@@ -163,7 +163,6 @@ class CategoryControllerTest {
                                   "title": "%s",
                                   "content": "%s",
                                   "language": "Java",
-                                  "description": "test-description",
                                   "categoryId": %d,
                                   "tags": ["Java"]
                                 }

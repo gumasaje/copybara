@@ -23,7 +23,7 @@ import {
   Trash2
 } from "lucide-react";
 import { api, getStoredToken, setStoredToken } from "./api";
-import type { Category, Memo, SnippetAnalysis, SnippetDetail, SnippetSummary } from "./types";
+import type { Category, SnippetAnalysis, SnippetDetail, SnippetSummary } from "./types";
 
 type User = {
   memberId: number;
@@ -114,7 +114,6 @@ export default function App() {
   const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
   const [snippetDetail, setSnippetDetail] = useState<SnippetDetail | null>(null);
   const [snippetAnalysis, setSnippetAnalysis] = useState<SnippetAnalysis | null>(null);
-  const [memos, setMemos] = useState<Memo[]>([]);
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [screenError, setScreenError] = useState<string | null>(null);
@@ -245,7 +244,6 @@ export default function App() {
   useEffect(() => {
     if (!selectedSnippetId) {
       setSnippetDetail(null);
-      setMemos([]);
       setSnippetAnalysis(null);
       setNotesDraft("");
       setNotesStatus(null);
@@ -253,10 +251,6 @@ export default function App() {
     }
     void refreshSnippet(selectedSnippetId);
   }, [selectedSnippetId]);
-
-  useEffect(() => {
-    setNotesDraft(memos.map((memo) => memo.content).join("\n\n"));
-  }, [memos]);
 
   async function refreshWorkspace() {
     try {
@@ -271,9 +265,9 @@ export default function App() {
 
   async function refreshSnippet(snippetId: number) {
     try {
-      const [detail, memoList] = await Promise.all([api.getSnippet(snippetId), api.getMemos(snippetId)]);
+      const detail = await api.getSnippet(snippetId);
       setSnippetDetail(detail);
-      setMemos(memoList);
+      setNotesDraft(detail.notes ?? "");
       try {
         const analysis = await api.getAnalysis(snippetId);
         setSnippetAnalysis(analysis);
@@ -332,7 +326,6 @@ export default function App() {
         title: formState.title,
         content: formState.content,
         language: formState.language,
-        description: "",
         categoryId: formState.categoryId,
         tags: parseTags(formState.tagsText)
       };
@@ -450,27 +443,10 @@ export default function App() {
       setScreenError(null);
       setNotesStatus(null);
       setIsSavingNotes(true);
-      const trimmed = notesDraft.trim();
-      if (!trimmed) {
-        if (memos.length > 0) {
-          await Promise.all(memos.map((memo) => api.deleteMemo(snippetDetail.snippetId, memo.memoId)));
-        }
-        await refreshSnippet(snippetDetail.snippetId);
-        setNotesStatus("Notes cleared");
-        return;
-      }
-
-      if (memos.length === 0) {
-        await api.createMemo(snippetDetail.snippetId, trimmed);
-      } else {
-        const [primaryMemo, ...legacyMemos] = memos;
-        await api.updateMemo(snippetDetail.snippetId, primaryMemo.memoId, trimmed);
-        if (legacyMemos.length > 0) {
-          await Promise.all(legacyMemos.map((memo) => api.deleteMemo(snippetDetail.snippetId, memo.memoId)));
-        }
-      }
-      await refreshSnippet(snippetDetail.snippetId);
-      setNotesStatus("Notes saved");
+      const response = await api.updateNotes(snippetDetail.snippetId, notesDraft);
+      setSnippetDetail((prev) => (prev ? { ...prev, notes: response.notes, updatedAt: response.updatedAt } : prev));
+      setNotesDraft(response.notes ?? "");
+      setNotesStatus(response.notes == null ? "Notes cleared" : "Notes saved");
     } catch (error) {
       setScreenError(error instanceof Error ? error.message : "노트 저장에 실패했습니다.");
     } finally {
@@ -554,7 +530,6 @@ export default function App() {
       title: changes.title ?? base.title,
       content: base.content,
       language: base.language ?? "Text",
-      description: "",
       categoryId: changes.categoryId !== undefined ? changes.categoryId : base.category?.categoryId ?? null,
       tags: base.tags
     });

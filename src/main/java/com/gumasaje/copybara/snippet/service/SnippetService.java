@@ -13,6 +13,8 @@ import com.gumasaje.copybara.snippet.domain.Snippet;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetDetailResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetFavoriteRequest;
+import com.gumasaje.copybara.snippet.dto.SnippetNotesRequest;
+import com.gumasaje.copybara.snippet.dto.SnippetNotesResponse;
 import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
 import com.gumasaje.copybara.snippet.repository.SnippetRepository;
 import com.gumasaje.copybara.tag.domain.Tag;
@@ -56,8 +58,7 @@ public class SnippetService {
                 resolveCategory(memberId, request.categoryId()),
                 request.title(),
                 request.content(),
-                request.language(),
-                request.description()
+                request.language()
         );
         snippet.replaceTags(resolveTags(request.tags()));
         return toDetailResponse(snippetRepository.save(snippet));
@@ -99,8 +100,7 @@ public class SnippetService {
                 resolveCategory(memberId, request.categoryId()),
                 request.title(),
                 request.content(),
-                request.language(),
-                request.description()
+                request.language()
         );
         snippet.replaceTags(resolveTags(request.tags()));
         return toDetailResponse(snippet);
@@ -114,6 +114,16 @@ public class SnippetService {
         Snippet snippet = findOwnedSnippet(memberId, snippetId);
         snippet.updateFavorite(request.favorite());
         return toDetailResponse(snippet);
+    }
+
+    public SnippetNotesResponse updateNotes(Long memberId, Long snippetId, SnippetNotesRequest request) {
+        Snippet snippet = findOwnedSnippet(memberId, snippetId);
+        snippet.updateNotes(normalizeNotes(request.content()));
+        return new SnippetNotesResponse(
+                snippet.getId(),
+                snippet.getNotes(),
+                snippet.getUpdatedAt()
+        );
     }
 
     private Snippet findOwnedSnippet(Long memberId, Long snippetId) {
@@ -168,7 +178,6 @@ public class SnippetService {
                 snippet.getId(),
                 snippet.getTitle(),
                 snippet.getLanguage(),
-                snippet.getDescription(),
                 extractCategory(snippet),
                 snippet.isFavorite(),
                 extractTagNames(snippet),
@@ -183,7 +192,7 @@ public class SnippetService {
                 snippet.getTitle(),
                 snippet.getContent(),
                 snippet.getLanguage(),
-                snippet.getDescription(),
+                snippet.getNotes(),
                 extractCategory(snippet),
                 snippet.isFavorite(),
                 extractTagNames(snippet),
@@ -191,6 +200,14 @@ public class SnippetService {
                 snippet.getCreatedAt(),
                 snippet.getUpdatedAt()
         );
+    }
+
+    private String normalizeNotes(String notes) {
+        if (notes == null) {
+            return null;
+        }
+        String trimmed = notes.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private List<String> extractTagNames(Snippet snippet) {

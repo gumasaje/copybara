@@ -2,7 +2,6 @@ import type {
   Category,
   ErrorResponse,
   LoginResponse,
-  Memo,
   SnippetAnalysis,
   SnippetDetail,
   SnippetSummary
@@ -96,7 +95,6 @@ export const api = {
     title: string;
     content: string;
     language: string;
-    description: string;
     categoryId: number | null;
     tags: string[];
   }) {
@@ -111,7 +109,6 @@ export const api = {
       title: string;
       content: string;
       language: string;
-      description: string;
       categoryId: number | null;
       tags: string[];
     }
@@ -130,23 +127,11 @@ export const api = {
       body: JSON.stringify({ favorite })
     });
   },
-  getMemos(snippetId: number) {
-    return request<Memo[]>(`/api/snippets/${snippetId}/memos`);
-  },
-  createMemo(snippetId: number, content: string) {
-    return request<Memo>(`/api/snippets/${snippetId}/memos`, {
-      method: "POST",
-      body: JSON.stringify({ content })
-    });
-  },
-  updateMemo(snippetId: number, memoId: number, content: string) {
-    return request<Memo>(`/api/snippets/${snippetId}/memos/${memoId}`, {
+  updateNotes(snippetId: number, content: string) {
+    return request<{ snippetId: number; notes: string | null; updatedAt: string }>(`/api/snippets/${snippetId}/notes`, {
       method: "PUT",
       body: JSON.stringify({ content })
     });
-  },
-  deleteMemo(snippetId: number, memoId: number) {
-    return request<void>(`/api/snippets/${snippetId}/memos/${memoId}`, { method: "DELETE" });
   },
   getAnalysis(snippetId: number) {
     return request<SnippetAnalysis>(`/api/snippets/${snippetId}/analysis`);

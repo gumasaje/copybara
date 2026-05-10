@@ -27,19 +27,10 @@ export type Attachment = {
   uploadedAt: string;
 };
 
-export type Memo = {
-  memoId: number;
-  snippetId: number;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
 export type SnippetSummary = {
   snippetId: number;
   title: string;
   language: string;
-  description: string;
   category: CategorySummary | null;
   favorite: boolean;
   tags: string[];
@@ -52,7 +43,7 @@ export type SnippetDetail = {
   title: string;
   content: string;
   language: string;
-  description: string;
+  notes: string | null;
   category: CategorySummary | null;
   favorite: boolean;
   tags: string[];

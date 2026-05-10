@@ -10,7 +10,7 @@ public record SnippetDetailResponse(
         String title,
         String content,
         String language,
-        String description,
+        String notes,
         CategorySummaryResponse category,
         boolean favorite,
         List<String> tags,

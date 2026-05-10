@@ -25,7 +25,6 @@ public interface SnippetRepository extends JpaRepository<Snippet, Long> {
                 :keyword is null
                 or lower(s.title) like lower(concat('%', :keyword, '%'))
                 or lower(s.content) like lower(concat('%', :keyword, '%'))
-                or lower(s.description) like lower(concat('%', :keyword, '%'))
               )
               and (:normalizedTag is null or t.normalizedName = :normalizedTag)
             order by s.updatedAt desc

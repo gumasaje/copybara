@@ -8,7 +8,6 @@ public record SnippetSummaryResponse(
         Long snippetId,
         String title,
         String language,
-        String description,
         CategorySummaryResponse category,
         boolean favorite,
         List<String> tags,

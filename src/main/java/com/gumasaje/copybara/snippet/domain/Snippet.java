@@ -3,7 +3,6 @@ package com.gumasaje.copybara.snippet.domain;
 import com.gumasaje.copybara.analysis.domain.SnippetAnalysis;
 import com.gumasaje.copybara.attachment.domain.Attachment;
 import com.gumasaje.copybara.category.domain.Category;
-import com.gumasaje.copybara.memo.domain.Memo;
 import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.tag.domain.Tag;
 import jakarta.persistence.CascadeType;
@@ -49,8 +48,8 @@ public class Snippet {
     @Column(length = 50)
     private String language;
 
-    @Column(length = 255)
-    private String description;
+    @Column(columnDefinition = "TEXT")
+    private String notes;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
@@ -70,9 +69,6 @@ public class Snippet {
     @OneToMany(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Attachment> attachments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private List<Memo> memos = new ArrayList<>();
-
     @OneToOne(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private SnippetAnalysis analysis;
 
@@ -84,21 +80,23 @@ public class Snippet {
 
     protected Snippet() {}
 
-    public Snippet(Member member, Category category, String title, String content, String language, String description) {
+    public Snippet(Member member, Category category, String title, String content, String language) {
         this.member = member;
         this.category = category;
         this.title = title;
         this.content = content;
         this.language = language;
-        this.description = description;
     }
 
-    public void update(Category category, String title, String content, String language, String description) {
+    public void update(Category category, String title, String content, String language) {
         this.category = category;
         this.title = title;
         this.content = content;
         this.language = language;
-        this.description = description;
+    }
+
+    public void updateNotes(String notes) {
+        this.notes = notes;
     }
 
     public void clearCategory() {
@@ -129,12 +127,11 @@ public class Snippet {
     public String getTitle() { return title; }
     public String getContent() { return content; }
     public String getLanguage() { return language; }
-    public String getDescription() { return description; }
+    public String getNotes() { return notes; }
     public Category getCategory() { return category; }
     public boolean isFavorite() { return favorite; }
     public Set<Tag> getTags() { return tags; }
     public List<Attachment> getAttachments() { return attachments; }
-    public List<Memo> getMemos() { return memos; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }
