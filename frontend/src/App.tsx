@@ -6,6 +6,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { sql } from "@codemirror/lang-sql";
 import {
+  Copy,
   ChevronDown,
   ChevronRight,
   FolderOpen,
@@ -125,6 +126,7 @@ export default function App() {
   const [notesDraft, setNotesDraft] = useState("");
   const [notesStatus, setNotesStatus] = useState<string | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState<"create" | "rename">("create");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -533,6 +535,17 @@ export default function App() {
     setUser(null);
     setSelectedSnippetId(null);
     setSnippetDetail(null);
+  }
+
+  async function handleCopySnippet() {
+    if (!snippetDetail) return;
+    try {
+      await navigator.clipboard.writeText(snippetDetail.content);
+      setCopyStatus("copied");
+      window.setTimeout(() => setCopyStatus("idle"), 1400);
+    } catch (error) {
+      setScreenError(error instanceof Error ? error.message : "복사에 실패했습니다.");
+    }
   }
 
   function goHome() {
@@ -1221,7 +1234,7 @@ export default function App() {
               <PanelLeftOpen size={16} />
             </button>
             <button className="icon-button" onClick={openCreateSnippet} data-tooltip="New snippet">
-              <Pencil size={16} />
+              <Plus size={16} />
             </button>
           </div>
         )}
@@ -1302,7 +1315,6 @@ export default function App() {
           <>
             <div className="pane-header detail-pane-header">
               <div>
-                <span className="eyebrow">{snippetDetail.category?.name ?? "Uncategorized"} / {snippetDetail.language || "Text"}</span>
                 <h1 className="workspace-title">{snippetDetail.title}</h1>
               </div>
               <div className="header-actions">
@@ -1331,20 +1343,26 @@ export default function App() {
               </div>
             </div>
 
-            <div className="workspace-meta">
-              <div className="tag-row compact-tags">
-                {snippetDetail.tags.map((tag) => (
-                  <span key={tag} className="tag-chip">
-                    {tag}
-                  </span>
-                ))}
+            {snippetDetail.tags.length > 0 && (
+              <div className="workspace-meta">
+                <div className="tag-row compact-tags">
+                  {snippetDetail.tags.map((tag) => (
+                    <span key={tag} className="tag-chip">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="editor-toolbar workspace-toolbar">
               <div className="toolbar-actions">
-                <button className="secondary-button compact" onClick={() => navigator.clipboard.writeText(snippetDetail.content)}>
-                  Copy
+                <button
+                  className={`icon-button ${copyStatus === "copied" ? "copy-feedback-icon" : ""}`}
+                  onClick={() => void handleCopySnippet()}
+                  data-tooltip={copyStatus === "copied" ? "Copied!" : "Copy"}
+                >
+                  <Copy size={16} />
                 </button>
                 {snippetDetail.deletedAt == null && (
                   <button className="primary-button compact" onClick={() => void handleAnalyze()}>
@@ -1533,12 +1551,12 @@ export default function App() {
             </div>
 
             <div className="composer-footer">
-              <div className="footer-actions">
-                <button className="secondary-button" onClick={() => setShowComposer(false)}>
-                  Cancel
-                </button>
+              <div className="footer-actions spaced-actions modal-primary-first">
                 <button className="primary-button save-btn" onClick={() => void submitSnippet()}>
                   {editingSnippet ? "Update Snippet" : "Save to Archive"}
+                </button>
+                <button className="secondary-button" onClick={() => setShowComposer(false)}>
+                  Cancel
                 </button>
               </div>
             </div>

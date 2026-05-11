@@ -1351,23 +1351,6 @@ button {
   font-weight: 600;
 }
 
-.workspace-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 2px 4px 14px;
-  flex-wrap: wrap;
-}
-
-.workspace-meta p {
-  margin: 0;
-}
-
-.compact-tags {
-  margin-top: 0;
-}
-
 .workspace-toolbar {
   justify-content: flex-end;
 }
@@ -1569,6 +1552,12 @@ button {
   align-items: center;
 }
 
+.footer-actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
 .footer-tips {
   color: #62666d;
   font-size: 12px;
@@ -1577,6 +1566,22 @@ button {
 .save-btn {
   padding: 10px 24px !important;
   font-weight: 600 !important;
+}
+
+.spaced-actions {
+  gap: 24px;
+}
+
+.modal-primary-first {
+  justify-content: flex-start;
+}
+
+.copy-feedback-icon {
+  border-color: #5e6ad2 !important;
+  color: #f7f8f8 !important;
+  background: #171a24 !important;
+  box-shadow: 0 0 0 1px rgba(94, 106, 210, 0.35), 0 6px 14px rgba(94, 106, 210, 0.22);
+  transform: translateY(-1px) scale(1.03);
 }
 
 .category-modal {
@@ -1859,4 +1864,15 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+.workspace-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 4px 14px;
+  flex-wrap: wrap;
+}
+
+.compact-tags {
+  margin-top: 0;
 }
