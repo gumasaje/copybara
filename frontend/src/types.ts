@@ -5,6 +5,20 @@ export type LoginResponse = {
   accessToken: string;
 };
 
+export type User = {
+  memberId: number;
+  email: string;
+  nickname: string;
+};
+
+export type SnippetFormState = {
+  title: string;
+  content: string;
+  language: string;
+  categoryId: number | null;
+  tagsText: string;
+};
+
 export type Category = {
   categoryId: number;
   name: string;

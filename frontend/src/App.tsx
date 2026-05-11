@@ -1,46 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
-import { java } from "@codemirror/lang-java";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
-import { sql } from "@codemirror/lang-sql";
 import {
   Copy,
-  ChevronDown,
-  ChevronRight,
   FolderOpen,
-  FolderPlus,
-  Inbox,
-  LogOut,
-  MoreHorizontal,
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
   Pin,
   Plus,
-  X,
   Search,
   Sparkles,
   Trash2
 } from "lucide-react";
 import { api, getStoredToken, setStoredToken } from "./api";
-import type { Category, SnippetAnalysis, SnippetDetail, SnippetSummary } from "./types";
-
-type User = {
-  memberId: number;
-  email: string;
-  nickname: string;
-};
-
-type SnippetFormState = {
-  title: string;
-  content: string;
-  language: string;
-  categoryId: number | null;
-  tagsText: string;
-};
+import { AuthPage } from "./components/AuthPage";
+import { OverviewListView } from "./components/OverviewListView";
+import { FoldersSection } from "./components/sidebar/FoldersSection";
+import { PinnedSection } from "./components/sidebar/PinnedSection";
+import { RecentsSection } from "./components/sidebar/RecentsSection";
+import { SearchResultsSection } from "./components/sidebar/SearchResultsSection";
+import { SidebarFooter } from "./components/sidebar/SidebarFooter";
+import { CategoryModal } from "./components/modals/CategoryModal";
+import { ComposerModal } from "./components/modals/ComposerModal";
+import { ConfirmDialog } from "./components/modals/ConfirmDialog";
+import { SnippetModal } from "./components/modals/SnippetModal";
+import { FolderMenu } from "./components/menus/FolderMenu";
+import { SidebarSnippetMenu } from "./components/menus/SidebarSnippetMenu";
+import type { Category, SnippetAnalysis, SnippetDetail, SnippetFormState, SnippetSummary, User } from "./types";
+import { getExtensions } from "./utils/editor";
+import { parseSidebarMenuKey, parseTags } from "./utils/helpers";
 
 const DEFAULT_FORM: SnippetFormState = {
   title: "",
@@ -49,68 +38,6 @@ const DEFAULT_FORM: SnippetFormState = {
   categoryId: null,
   tagsText: "Java"
 };
-
-const LANGUAGE_OPTIONS = ["Java", "JavaScript", "TypeScript", "Python", "SQL", "Text"];
-
-function getExtensions(language: string) {
-  switch (language.toLowerCase()) {
-    case "java":
-      return [java()];
-    case "javascript":
-    case "typescript":
-      return [javascript({ typescript: language.toLowerCase() === "typescript" })];
-    case "python":
-      return [python()];
-    case "sql":
-      return [sql()];
-    default:
-      return [];
-  }
-}
-
-function parseTags(tagsText: string) {
-  return tagsText
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
-function formatOverviewTimestamp(isoString: string) {
-  const date = new Date(isoString);
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-
-  if (sameDay) {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit"
-    }).format(date).toLowerCase();
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric"
-  }).format(date);
-}
-
-function formatOverviewSecondary(snippet: SnippetSummary) {
-  const parts = [];
-
-  if (snippet.language?.trim()) {
-    parts.push(snippet.language.trim());
-  }
-
-  parts.push(snippet.category?.name ?? "No folder");
-
-  return parts.join(" · ");
-}
-
-function parseSidebarMenuKey(menuKey: string) {
-  const separatorIndex = menuKey.lastIndexOf(":");
-  const scope = menuKey.slice(0, separatorIndex);
-  const snippetId = Number(menuKey.slice(separatorIndex + 1));
-  return { scope, snippetId };
-}
 
 export default function App() {
   const detailPaneRef = useRef<HTMLElement | null>(null);
@@ -164,7 +91,6 @@ export default function App() {
   const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
 
-  const editorExtensions = useMemo(() => getExtensions(formState.language), [formState.language]);
   const isSearchMode = keyword.trim().length > 0;
 
   const uncategorizedSnippets = useMemo(() => {
@@ -892,78 +818,12 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="auth-shell">
-        <div className="auth-panel">
-          <div className="auth-copy">
-            <div className="auth-brand">
-              <span className="eyebrow">Copybara</span>
-              <h1>Personal code archive for snippets you want to keep.</h1>
-              <p>Folders on the left, code on the right, and enough structure to find things again later.</p>
-            </div>
-            <div className="auth-points">
-              <div>
-                <FolderOpen size={16} />
-                <span>Folder-based archive with per-user categories</span>
-              </div>
-              <div>
-                <Sparkles size={16} />
-                <span>AI summary and suggested tags when needed</span>
-              </div>
-              <div>
-                <Search size={16} />
-                <span>Search, pinned snippets, and recents for quick retrieval</span>
-              </div>
-            </div>
-          </div>
-          <div className="auth-form-shell">
-            <form
-              key={authMode}
-              className="auth-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleAuthSubmit(new FormData(event.currentTarget));
-              }}
-            >
-              <div className="auth-form-copy">
-                <h2>{authMode === "login" ? "Welcome back" : "Create your archive"}</h2>
-                <p>
-                  {authMode === "login"
-                    ? "Sign in to open your workspace."
-                    : "Start with an account and keep your snippets organized."}
-                </p>
-              </div>
-              <label className="auth-field">
-                <span>Email</span>
-                <input name="email" type="email" placeholder="you@example.com" required />
-              </label>
-              <label className="auth-field">
-                <span>Password</span>
-                <input name="password" type="password" placeholder="Enter password" required />
-              </label>
-              {authMode === "signup" && (
-                <label className="auth-field">
-                  <span>Nickname</span>
-                  <input name="nickname" placeholder="How should we call you?" required />
-                </label>
-              )}
-              {authError && <p className="error-text">{authError}</p>}
-              <button className="primary-button auth-submit" type="submit">
-                {authMode === "login" ? "Enter archive" : "Create account"}
-              </button>
-              <p className="auth-switch-text">
-                {authMode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-                <button
-                  type="button"
-                  className="auth-switch-link"
-                  onClick={() => setAuthMode((prev) => (prev === "login" ? "signup" : "login"))}
-                >
-                  {authMode === "login" ? "Sign up" : "Sign in"}
-                </button>
-              </p>
-            </form>
-          </div>
-        </div>
-      </div>
+      <AuthPage
+        authMode={authMode}
+        authError={authError}
+        onSubmit={handleAuthSubmit}
+        onToggleMode={() => setAuthMode((prev) => (prev === "login" ? "signup" : "login"))}
+      />
     );
   }
 
@@ -1006,311 +866,95 @@ export default function App() {
         <div className="sidebar-scroll-area">
           <div className="folder-list">
             {isSearchMode ? (
-              <>
-                <div className="folder-header">
-                  <span className="eyebrow">Search results</span>
-                </div>
-                <div className="nested-snippet-list">
-                  {allSnippets.length === 0 ? (
-                    <span className="empty-hint">No snippets matched.</span>
-                  ) : (
-                    allSnippets.map((snippet) => (
-                      <button
-                        key={snippet.snippetId}
-                        className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "search" ? "active" : ""}`}
-                        onClick={() => openSnippetFromSidebar(snippet.snippetId, "search")}
-                      >
-                        <span className="truncate">{snippet.title}</span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </>
+              <SearchResultsSection
+                snippets={allSnippets}
+                selectedSnippetId={selectedSnippetId}
+                selectedSidebarScope={selectedSidebarScope}
+                onOpenSnippet={openSnippetFromSidebar}
+              />
             ) : (
               <>
-                {favoriteSnippets.length > 0 && (
-                  <>
-                    <div className={`folder-header recents-header ${isFavoritesExpanded ? "expanded" : ""}`}>
-                      <button className="recents-toggle" onClick={() => setIsFavoritesExpanded((prev) => !prev)}>
-                        <span className="eyebrow section-label-with-icon favorites-section-label">
-                          <span className="section-icon-badge">
-                            <Pin size={10} />
-                          </span>
-                          Pinned
-                        </span>
-                        <span className="recents-chevron">
-                          {isFavoritesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </span>
-                      </button>
-                    </div>
-                    {isFavoritesExpanded && (
-                      <div className="nested-snippet-list">
-                        {favoriteSnippets.map((snippet) => (
-                          <div
-                            key={snippet.snippetId}
-                            className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "favorites" ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey("favorites", snippet.snippetId) ? "menu-open" : ""}`}
-                            onContextMenu={(event) => {
-                              event.preventDefault();
-                              toggleSidebarSnippetMenu(
-                                sidebarSnippetMenuKey("favorites", snippet.snippetId),
-                                event.currentTarget,
-                                { x: event.clientX, y: event.clientY }
-                              );
-                            }}
-                          >
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              draggable
-                              onDragStart={(event) => handleSnippetDragStart(snippet, event)}
-                              onDragEnd={handleSnippetDragEnd}
-                              className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "favorites" ? "active" : ""}`}
-                              onClick={() => openSnippetFromSidebar(snippet.snippetId, "favorites")}
-                              onKeyDown={(event) => handleSidebarItemKeyDown(event, snippet.snippetId, "favorites")}
-                            >
-                              <span className="truncate">{snippet.title}</span>
-                            </div>
-                            <div className="snippet-row-actions">
-                              <button
-                                className="icon-button ghost mini"
-                                data-menu-trigger="true"
-                                onClick={(event) => {
-                                  toggleSidebarSnippetMenu(sidebarSnippetMenuKey("favorites", snippet.snippetId), event.currentTarget);
-                                }}
-                              >
-                                <MoreHorizontal size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
+                <PinnedSection
+                  snippets={favoriteSnippets}
+                  isExpanded={isFavoritesExpanded}
+                  selectedSnippetId={selectedSnippetId}
+                  selectedSidebarScope={selectedSidebarScope}
+                  openSidebarSnippetMenuId={openSidebarSnippetMenuId}
+                  sidebarSnippetMenuKey={sidebarSnippetMenuKey}
+                  onToggleExpanded={() => setIsFavoritesExpanded((prev) => !prev)}
+                  onOpenSnippet={openSnippetFromSidebar}
+                  onSidebarItemKeyDown={handleSidebarItemKeyDown}
+                  onSnippetDragStart={handleSnippetDragStart}
+                  onSnippetDragEnd={handleSnippetDragEnd}
+                  onToggleSnippetMenu={toggleSidebarSnippetMenu}
+                />
 
-                <div
-                  className={`folder-header recents-header ${isRecentsExpanded ? "expanded" : ""}`}
-                >
-                  <button className="recents-toggle" onClick={() => setIsRecentsExpanded((prev) => !prev)}>
-                    <span className="eyebrow">Recents</span>
-                    <span className="recents-chevron">
-                      {isRecentsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </span>
-                  </button>
-                  <button
-                    className="view-all-button"
-                    onClick={() => {
-                      setOverviewMode("all");
-                      setIsRecentsExpanded(true);
-                    }}
-                  >
-                    View all
-                  </button>
-                </div>
-                {isRecentsExpanded && (
-                <div className="nested-snippet-list">
-                  {recentSnippets.map((snippet) => (
-                    <div
-                      key={snippet.snippetId}
-                      className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "recents" ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey("recents", snippet.snippetId) ? "menu-open" : ""}`}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        toggleSidebarSnippetMenu(
-                          sidebarSnippetMenuKey("recents", snippet.snippetId),
-                          event.currentTarget,
-                          { x: event.clientX, y: event.clientY }
-                        );
-                      }}
-                    >
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        draggable
-                        onDragStart={(event) => handleSnippetDragStart(snippet, event)}
-                        onDragEnd={handleSnippetDragEnd}
-                        className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "recents" ? "active" : ""}`}
-                        onClick={() => openSnippetFromSidebar(snippet.snippetId, "recents")}
-                        onKeyDown={(event) => handleSidebarItemKeyDown(event, snippet.snippetId, "recents")}
-                      >
-                        <span className="truncate">{snippet.title}</span>
-                      </div>
-                      <div className="snippet-row-actions">
-                        <button
-                          className="icon-button ghost mini"
-                          data-menu-trigger="true"
-                          onClick={(event) => {
-                            toggleSidebarSnippetMenu(sidebarSnippetMenuKey("recents", snippet.snippetId), event.currentTarget);
-                          }}
-                        >
-                          <MoreHorizontal size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                )}
+                <RecentsSection
+                  snippets={recentSnippets}
+                  isExpanded={isRecentsExpanded}
+                  selectedSnippetId={selectedSnippetId}
+                  selectedSidebarScope={selectedSidebarScope}
+                  openSidebarSnippetMenuId={openSidebarSnippetMenuId}
+                  sidebarSnippetMenuKey={sidebarSnippetMenuKey}
+                  onToggleExpanded={() => setIsRecentsExpanded((prev) => !prev)}
+                  onViewAll={() => {
+                    setOverviewMode("all");
+                    setIsRecentsExpanded(true);
+                  }}
+                  onOpenSnippet={openSnippetFromSidebar}
+                  onSidebarItemKeyDown={handleSidebarItemKeyDown}
+                  onSnippetDragStart={handleSnippetDragStart}
+                  onSnippetDragEnd={handleSnippetDragEnd}
+                  onToggleSnippetMenu={toggleSidebarSnippetMenu}
+                />
 
-                <div className={`folder-header recents-header ${isFoldersExpanded ? "expanded" : ""}`}>
-                  <button className="recents-toggle" onClick={() => setIsFoldersExpanded((prev) => !prev)}>
-                    <span className="eyebrow">Folders</span>
-                    <span className="recents-chevron">
-                      {isFoldersExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </span>
-                  </button>
-                  <button className="icon-button ghost" onClick={openCreateCategoryModal} data-tooltip="New folder">
-                    <FolderPlus size={14} />
-                  </button>
-                </div>
-
-                {isFoldersExpanded && (
-                  <div
-                    className={`folder-item no-folder-drop-target ${activeDropTarget === "inbox" ? "menu-open" : ""}`}
-                    onDragOver={(event) => handleSnippetDragOver(null, event)}
-                    onDragLeave={(event) => handleSnippetDragLeave(null, event)}
-                    onDrop={(event) => void handleSnippetDrop(null, event)}
-                  >
-                    <button
-                      className={`folder-row llm-card ${selectedSidebarScope === "inbox" ? "expanded" : ""} ${activeDropTarget === "inbox" ? "drop-target-active" : ""}`}
-                      onClick={() => {
-                        setOverviewMode(null);
-                        setSelectedSidebarScope("inbox");
-                        if (uncategorizedSnippets.length > 0) {
-                          setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
-                        }
-                      }}
-                    >
-                      <div className="folder-row-main">
-                        <Inbox size={14} className="folder-icon no-folder-icon" />
-                        <span className="card-title">Inbox</span>
-                      </div>
-                      <span className="card-meta">{uncategorizedSnippets.length}</span>
-                    </button>
-                  </div>
-                )}
-
-                {isFoldersExpanded && categories.map((category) => {
-                  const isExpanded = expandedCategories.has(category.categoryId);
-                  const categorySnippets = allSnippets.filter((s) => s.category?.categoryId === category.categoryId);
-
-                  return (
-                    <div key={category.categoryId} className="folder-group">
-                      <div
-                        className={`folder-item ${openFolderMenuId === category.categoryId ? "menu-open" : ""}`}
-                        onDragOver={(event) => handleSnippetDragOver(category.categoryId, event)}
-                        onDragLeave={(event) => handleSnippetDragLeave(category.categoryId, event)}
-                        onDrop={(event) => void handleSnippetDrop(category.categoryId, event)}
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          toggleFolderMenu(
-                            category.categoryId,
-                            event.currentTarget,
-                            { x: event.clientX, y: event.clientY }
-                          );
-                        }}
-                      >
-                        <button
-                          className={`folder-row llm-card ${isExpanded ? "expanded" : ""} ${activeDropTarget === `folder-${category.categoryId}` ? "drop-target-active" : ""}`}
-                          onClick={() => {
-                            setOverviewMode(null);
-                            toggleCategory(category.categoryId);
-                          }}
-                        >
-                          <div className="folder-row-main">
-                            {isExpanded ? <ChevronDown size={14} className="chevron" /> : <ChevronRight size={14} className="chevron" />}
-                            <FolderOpen size={14} className="folder-icon" />
-                            <span className="card-title">{category.name}</span>
-                          </div>
-                          <span className="card-meta">{category.snippetCount}</span>
-                        </button>
-                        <div className="row-actions">
-                          <button
-                            className="icon-button ghost mini"
-                            data-menu-trigger="true"
-                            onClick={(event) => {
-                              toggleFolderMenu(category.categoryId, event.currentTarget);
-                            }}
-                          >
-                            <MoreHorizontal size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="nested-snippet-list">
-                          {categorySnippets.map((snippet) => (
-                            <div
-                              key={snippet.snippetId}
-                              className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === `folder-${category.categoryId}` ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId) ? "menu-open" : ""}`}
-                              onContextMenu={(event) => {
-                                event.preventDefault();
-                                toggleSidebarSnippetMenu(
-                                  sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId),
-                                  event.currentTarget,
-                                  { x: event.clientX, y: event.clientY }
-                                );
-                              }}
-                            >
-                              <div
-                                role="button"
-                                tabIndex={0}
-                                draggable
-                                onDragStart={(event) => handleSnippetDragStart(snippet, event)}
-                                onDragEnd={handleSnippetDragEnd}
-                                className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === `folder-${category.categoryId}` ? "active" : ""}`}
-                                onClick={() => openSnippetFromSidebar(snippet.snippetId, `folder-${category.categoryId}`)}
-                                onKeyDown={(event) => handleSidebarItemKeyDown(event, snippet.snippetId, `folder-${category.categoryId}`)}
-                              >
-                                <span className="truncate">{snippet.title}</span>
-                              </div>
-                              <div className="snippet-row-actions">
-                                <button
-                                  className="icon-button ghost mini"
-                                  data-menu-trigger="true"
-                                  onClick={(event) => {
-                                    toggleSidebarSnippetMenu(sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId), event.currentTarget);
-                                  }}
-                                >
-                                  <MoreHorizontal size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          {categorySnippets.length === 0 && <span className="empty-hint">Empty folder</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
+                <FoldersSection
+                  isExpanded={isFoldersExpanded}
+                  categories={categories}
+                  expandedCategories={expandedCategories}
+                  uncategorizedSnippets={uncategorizedSnippets}
+                  allSnippets={allSnippets}
+                  selectedSnippetId={selectedSnippetId}
+                  selectedSidebarScope={selectedSidebarScope}
+                  openFolderMenuId={openFolderMenuId}
+                  openSidebarSnippetMenuId={openSidebarSnippetMenuId}
+                  activeDropTarget={activeDropTarget}
+                  sidebarSnippetMenuKey={sidebarSnippetMenuKey}
+                  onToggleExpanded={() => setIsFoldersExpanded((prev) => !prev)}
+                  onOpenCreateCategoryModal={openCreateCategoryModal}
+                  onSelectInbox={() => {
+                    setOverviewMode(null);
+                    setSelectedSidebarScope("inbox");
+                    if (uncategorizedSnippets.length > 0) {
+                      setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
+                    }
+                  }}
+                  onToggleCategory={(categoryId) => {
+                    setOverviewMode(null);
+                    toggleCategory(categoryId);
+                  }}
+                  onOpenSnippet={openSnippetFromSidebar}
+                  onSidebarItemKeyDown={handleSidebarItemKeyDown}
+                  onSnippetDragStart={handleSnippetDragStart}
+                  onSnippetDragEnd={handleSnippetDragEnd}
+                  onSnippetDragOver={handleSnippetDragOver}
+                  onSnippetDragLeave={handleSnippetDragLeave}
+                  onSnippetDrop={handleSnippetDrop}
+                  onToggleSnippetMenu={toggleSidebarSnippetMenu}
+                  onToggleFolderMenu={toggleFolderMenu}
+                />
               </>
             )}
           </div>
         </div>
 
-        <div className="sidebar-footer">
-          <button
-            className={`sidebar-utility-button ${overviewMode === "trash" ? "active" : ""}`}
-            onClick={() => setOverviewMode("trash")}
-          >
-            <span className="sidebar-utility-main">
-              <Trash2 size={14} />
-              <span className="sidebar-utility-copy">
-                <span className="sidebar-utility-label">Trash</span>
-                <span className="sidebar-utility-subtle">Recently deleted</span>
-              </span>
-            </span>
-            {trashSnippets.length > 0 && <span className="sidebar-utility-count">{trashSnippets.length}</span>}
-          </button>
-          <div className="user-card">
-            <div className="avatar">{user.nickname.charAt(0).toUpperCase()}</div>
-            <div className="user-info">
-              <span className="nickname">{user.nickname}</span>
-            </div>
-            <button className="icon-button ghost mini-logout" onClick={handleLogout} data-tooltip="Logout">
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
+        <SidebarFooter
+          user={user}
+          overviewMode={overviewMode}
+          trashCount={trashSnippets.length}
+          onOpenTrash={() => setOverviewMode("trash")}
+          onLogout={handleLogout}
+        />
       </aside>
 
       <main
@@ -1331,77 +975,18 @@ export default function App() {
         )}
         {screenError && <div className="banner error">{screenError}</div>}
         {overviewMode ? (
-          <section className="all-snippets-view">
-            <div className="pane-header detail-pane-header">
-              <div>
-                <span className="eyebrow">Library</span>
-                <h1 className="workspace-title">{overviewMode === "trash" ? "Trash" : "All snippets"}</h1>
-                <p className="overview-caption">
-                  {overviewMode === "trash"
-                    ? `${trashSnippets.length} deleted snippet${trashSnippets.length === 1 ? "" : "s"}`
-                    : `${allSnippets.length} snippet${allSnippets.length === 1 ? "" : "s"} in your archive`}
-                </p>
-              </div>
-            </div>
-            <div className="all-snippets-list">
-              {(overviewMode === "trash" ? trashSnippets : allSnippets).length === 0 ? (
-                <div className="empty-list-card">
-                  <h3>{overviewMode === "trash" ? "Trash is empty." : "No snippets yet."}</h3>
-                  <p>{overviewMode === "trash" ? "Deleted snippets will appear here." : "Create a snippet to start building the archive."}</p>
-                </div>
-              ) : (
-                (overviewMode === "trash" ? trashSnippets : allSnippets).map((snippet) => (
-                  <button
-                    key={snippet.snippetId}
-                    className="overview-row"
-                    onClick={() => {
-                      setOverviewMode(null);
-                      setSelectedSidebarScope(overviewMode === "trash" ? "trash" : null);
-                      setSelectedSnippetId(snippet.snippetId);
-                    }}
-                  >
-                    <div className="overview-row-main">
-                      <div className="overview-row-copy">
-                        <div className="overview-row-title">
-                          <h3>{snippet.title}</h3>
-                          {snippet.favorite && <Pin size={14} className="favorite-icon" />}
-                        </div>
-                        <p>{overviewMode === "trash" ? `Deleted · ${formatOverviewSecondary(snippet)}` : formatOverviewSecondary(snippet)}</p>
-                      </div>
-                    </div>
-                    <div className="overview-row-meta">
-                      {overviewMode === "trash" ? (
-                        <div className="overview-row-actions">
-                          <button
-                            className="icon-button ghost mini"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleRestoreSnippet(snippet.snippetId);
-                            }}
-                            data-tooltip="Restore"
-                          >
-                            <FolderOpen size={14} />
-                          </button>
-                          <button
-                            className="icon-button ghost mini danger-icon"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openDeleteSnippetDialogFromSummary(snippet);
-                            }}
-                            data-tooltip="Delete permanently"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span>{formatOverviewTimestamp(snippet.updatedAt)}</span>
-                      )}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </section>
+          <OverviewListView
+            mode={overviewMode}
+            allSnippets={allSnippets}
+            trashSnippets={trashSnippets}
+            onSelectSnippet={(snippetId, scope) => {
+              setOverviewMode(null);
+              setSelectedSidebarScope(scope);
+              setSelectedSnippetId(snippetId);
+            }}
+            onRestoreSnippet={handleRestoreSnippet}
+            onDeleteSnippet={openDeleteSnippetDialogFromSummary}
+          />
         ) : snippetDetail ? (
           <>
             <div className="pane-header detail-pane-header">
@@ -1588,291 +1173,71 @@ export default function App() {
       </main>
 
       {showComposer && (
-        <div className="modal-backdrop">
-          <div className="linear-dialog">
-            <div className="composer-header">
-              <div className="header-titles">
-                <span className="eyebrow">{editingSnippet ? "Edit Archive" : "New Archive"}</span>
-                <input
-                  className="composer-title-input"
-                  value={formState.title}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
-                  placeholder="Snippet title..."
-                  autoFocus
-                />
-              </div>
-              <button className="icon-button ghost close-btn" onClick={() => setShowComposer(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="composer-meta-bar">
-              <div className="meta-field">
-                <span className="meta-label">Language</span>
-                <select
-                  className="meta-select"
-                  value={formState.language}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, language: event.target.value }))}
-                >
-                  {LANGUAGE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="meta-field full-meta">
-                <span className="meta-label">Tags</span>
-                <input
-                  className="meta-input"
-                  value={formState.tagsText}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, tagsText: event.target.value }))}
-                  placeholder="Add tags separated by comma..."
-                />
-              </div>
-            </div>
-
-            <div className="composer-editor-area">
-              <CodeMirror
-                value={formState.content}
-                height="480px"
-                extensions={editorExtensions}
-                theme={oneDark}
-                onChange={(value) => setFormState((prev) => ({ ...prev, content: value }))}
-                basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true }}
-              />
-            </div>
-
-            <div className="composer-footer">
-              <div className="footer-actions spaced-actions modal-primary-first">
-                <button className="primary-button save-btn" onClick={() => void submitSnippet()}>
-                  {editingSnippet ? "Update Snippet" : "Save to Archive"}
-                </button>
-                <button className="secondary-button" onClick={() => setShowComposer(false)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ComposerModal
+          editing={editingSnippet != null}
+          formState={formState}
+          onTitleChange={(value) => setFormState((prev) => ({ ...prev, title: value }))}
+          onLanguageChange={(value) => setFormState((prev) => ({ ...prev, language: value }))}
+          onTagsChange={(value) => setFormState((prev) => ({ ...prev, tagsText: value }))}
+          onContentChange={(value) => setFormState((prev) => ({ ...prev, content: value }))}
+          onSubmit={submitSnippet}
+          onClose={() => setShowComposer(false)}
+        />
       )}
 
       {showCategoryModal && (
-        <div className="modal-backdrop" onClick={closeCategoryModal}>
-          <div className="category-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="composer-header">
-              <div>
-                <span className="eyebrow">{categoryModalMode === "create" ? "New folder" : "Rename folder"}</span>
-                <h2>{categoryModalMode === "create" ? "Create folder" : "Rename folder"}</h2>
-              </div>
-              <button className="icon-button" onClick={closeCategoryModal}>
-                <X size={16} />
-              </button>
-            </div>
-
-            <label className="modal-field">
-              <span>Name</span>
-              <input
-                autoFocus
-                value={categoryDraft}
-                onChange={(event) => setCategoryDraft(event.target.value)}
-                placeholder="Backend, Algorithms, Notes..."
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void submitCategory();
-                  }
-                }}
-              />
-            </label>
-
-            <div className="composer-actions">
-              <button
-                className="secondary-button"
-                onClick={closeCategoryModal}
-              >
-                Cancel
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => void submitCategory()}
-              >
-                {categoryModalMode === "create" ? "Create folder" : "Save name"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CategoryModal
+          mode={categoryModalMode}
+          draft={categoryDraft}
+          setDraft={setCategoryDraft}
+          onSubmit={submitCategory}
+          onClose={closeCategoryModal}
+        />
       )}
 
       {snippetModalMode && snippetModalTarget && (
-        <div className="modal-backdrop" onClick={closeSnippetModal}>
-          <div className="category-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="composer-header">
-              <div>
-                <span className="eyebrow">{snippetModalMode === "rename" ? "Rename snippet" : "Move snippet"}</span>
-                <h2>{snippetModalMode === "rename" ? "Rename snippet" : "Add to folder"}</h2>
-              </div>
-              <button className="icon-button" onClick={closeSnippetModal}>
-                <X size={16} />
-              </button>
-            </div>
-
-            {snippetModalMode === "rename" ? (
-              <label className="modal-field">
-                <span>Name</span>
-                <input
-                  autoFocus
-                  value={snippetTitleDraft}
-                  onChange={(event) => setSnippetTitleDraft(event.target.value)}
-                  placeholder="Snippet title"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      void submitSnippetMetaModal();
-                    }
-                  }}
-                />
-              </label>
-            ) : (
-              <div className="modal-field">
-                <span>Folder</span>
-                <div className="folder-choice-list">
-                  <button
-                    type="button"
-                    className={`folder-choice ${snippetMoveCategoryId == null ? "selected" : ""}`}
-                    onClick={() => setSnippetMoveCategoryId(null)}
-                  >
-                    <div className="folder-choice-copy">
-                      <strong>No folder</strong>
-                      <span>Keep this snippet in Recents.</span>
-                    </div>
-                    {snippetMoveCategoryId == null && <span className="folder-choice-badge">Selected</span>}
-                  </button>
-                  {categories.map((category) => (
-                    <button
-                      type="button"
-                      key={category.categoryId}
-                      className={`folder-choice ${snippetMoveCategoryId === category.categoryId ? "selected" : ""}`}
-                      onClick={() => setSnippetMoveCategoryId(category.categoryId)}
-                    >
-                      <div className="folder-choice-copy">
-                        <strong>{category.name}</strong>
-                        <span>{category.snippetCount} snippet{category.snippetCount === 1 ? "" : "s"}</span>
-                      </div>
-                      {snippetMoveCategoryId === category.categoryId && <span className="folder-choice-badge">Selected</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="composer-actions">
-              <button className="secondary-button" onClick={closeSnippetModal}>
-                Cancel
-              </button>
-              <button className="primary-button" onClick={() => void submitSnippetMetaModal()}>
-                {snippetModalMode === "rename" ? "Save name" : "Move snippet"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SnippetModal
+          mode={snippetModalMode}
+          titleDraft={snippetTitleDraft}
+          setTitleDraft={setSnippetTitleDraft}
+          moveCategoryId={snippetMoveCategoryId}
+          setMoveCategoryId={setSnippetMoveCategoryId}
+          categories={categories}
+          onSubmit={submitSnippetMetaModal}
+          onClose={closeSnippetModal}
+        />
       )}
 
       {confirmDialog && (
-        <div className="modal-backdrop" onClick={() => setConfirmDialog(null)}>
-          <div className="confirm-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="composer-header">
-              <div>
-                <span className="eyebrow">{confirmDialog.tone === "danger" ? "Confirm action" : "Confirm"}</span>
-                <h2>{confirmDialog.title}</h2>
-              </div>
-              <button className="icon-button" onClick={() => setConfirmDialog(null)}>
-                <X size={16} />
-              </button>
-            </div>
-            <p className="confirm-copy">{confirmDialog.message}</p>
-            <div className="composer-actions">
-              <button className="secondary-button" onClick={() => setConfirmDialog(null)}>
-                Cancel
-              </button>
-              <button
-                className={`primary-button ${confirmDialog.tone === "danger" ? "danger-button" : ""}`}
-                onClick={() => void handleConfirmDialog()}
-              >
-                {confirmDialog.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          tone={confirmDialog.tone}
+          onConfirm={handleConfirmDialog}
+          onClose={() => setConfirmDialog(null)}
+        />
       )}
 
-      {typeof document !== "undefined" && activeSidebarMenuTarget?.snippet && openSidebarSnippetMenuStyle && createPortal(
-        <div className="context-menu snippet-context-menu floating-context-menu" style={openSidebarSnippetMenuStyle}>
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              setOpenSidebarSnippetMenuId(null);
-              void handleSidebarFavoriteToggle(activeSidebarMenuTarget.snippet!);
-            }}
-          >
-            <Pin size={14} />
-            {activeSidebarMenuTarget.snippet.favorite ? "Unpin" : "Pin"}
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              setOpenSidebarSnippetMenuId(null);
-              openRenameSnippetModal(activeSidebarMenuTarget.snippet!);
-            }}
-          >
-            <Pencil size={14} />
-            Rename
-          </button>
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              setOpenSidebarSnippetMenuId(null);
-              openMoveSnippetModal(activeSidebarMenuTarget.snippet!);
-            }}
-          >
-            <FolderPlus size={14} />
-            Add to folder
-          </button>
-          <div className="context-divider" />
-          <button
-            className="context-menu-item danger"
-            onClick={() => {
-              setOpenSidebarSnippetMenuId(null);
-              openDeleteSnippetDialogFromSummary(activeSidebarMenuTarget.snippet!);
-            }}
-          >
-            <Trash2 size={14} />
-            Delete
-          </button>
-        </div>,
-        document.body
+      {activeSidebarMenuTarget?.snippet && openSidebarSnippetMenuStyle && (
+        <SidebarSnippetMenu
+          snippet={activeSidebarMenuTarget.snippet}
+          style={openSidebarSnippetMenuStyle}
+          onClose={() => setOpenSidebarSnippetMenuId(null)}
+          onTogglePin={() => handleSidebarFavoriteToggle(activeSidebarMenuTarget.snippet!)}
+          onRename={() => openRenameSnippetModal(activeSidebarMenuTarget.snippet!)}
+          onMove={() => openMoveSnippetModal(activeSidebarMenuTarget.snippet!)}
+          onDelete={() => openDeleteSnippetDialogFromSummary(activeSidebarMenuTarget.snippet!)}
+        />
       )}
 
-      {typeof document !== "undefined" && activeFolderMenuCategory && openFolderMenuStyle && createPortal(
-        <div className="context-menu folder-context-menu floating-context-menu" style={openFolderMenuStyle}>
-          <button
-            className="context-menu-item"
-            onClick={() => {
-              setOpenFolderMenuId(null);
-              openRenameCategoryModal(activeFolderMenuCategory);
-            }}
-          >
-            <Pencil size={14} />
-            Rename
-          </button>
-          <button
-            className="context-menu-item danger"
-            onClick={() => {
-              setOpenFolderMenuId(null);
-              openDeleteCategoryDialog(activeFolderMenuCategory);
-            }}
-          >
-            <Trash2 size={14} />
-            Delete
-          </button>
-        </div>,
-        document.body
+      {activeFolderMenuCategory && openFolderMenuStyle && (
+        <FolderMenu
+          style={openFolderMenuStyle}
+          onClose={() => setOpenFolderMenuId(null)}
+          onRename={() => openRenameCategoryModal(activeFolderMenuCategory)}
+          onDelete={() => openDeleteCategoryDialog(activeFolderMenuCategory)}
+        />
       )}
     </div>
   );
