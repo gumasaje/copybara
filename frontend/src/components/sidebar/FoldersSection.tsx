@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FolderOpen, FolderPlus, Inbox, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, FolderPlus, GripVertical, Inbox, MoreHorizontal } from "lucide-react";
 import type { Category, SnippetSummary } from "../../types";
 
 type FoldersSectionProps = {
@@ -24,6 +24,15 @@ type FoldersSectionProps = {
   onSnippetDragOver: (categoryId: number | null, event: React.DragEvent<HTMLElement>) => void;
   onSnippetDragLeave: (categoryId: number | null, event: React.DragEvent<HTMLElement>) => void;
   onSnippetDrop: (categoryId: number | null, event: React.DragEvent<HTMLElement>) => Promise<void> | void;
+  onCategoryDragStart: (category: Category, event: React.DragEvent<HTMLElement>) => void;
+  onCategoryDragEnd: () => void;
+  draggedCategoryId: number | null;
+  onFolderItemDragOver: (categoryId: number, event: React.DragEvent<HTMLElement>) => void;
+  onFolderItemDragLeave: (categoryId: number, event: React.DragEvent<HTMLElement>) => void;
+  onFolderItemDrop: (categoryId: number, event: React.DragEvent<HTMLElement>) => Promise<void> | void;
+  onCategoryReorderDragOver: (targetIndex: number, event: React.DragEvent<HTMLElement>) => void;
+  onCategoryReorderDragLeave: (targetIndex: number, event: React.DragEvent<HTMLElement>) => void;
+  onCategoryReorderDrop: (targetIndex: number, event: React.DragEvent<HTMLElement>) => Promise<void> | void;
   onToggleSnippetMenu: (
     key: string,
     target: HTMLElement,
@@ -59,6 +68,15 @@ export function FoldersSection({
   onSnippetDragOver,
   onSnippetDragLeave,
   onSnippetDrop,
+  onCategoryDragStart,
+  onCategoryDragEnd,
+  draggedCategoryId,
+  onFolderItemDragOver,
+  onFolderItemDragLeave,
+  onFolderItemDrop,
+  onCategoryReorderDragOver,
+  onCategoryReorderDragLeave,
+  onCategoryReorderDrop,
   onToggleSnippetMenu,
   onToggleFolderMenu
 }: FoldersSectionProps) {
@@ -96,17 +114,23 @@ export function FoldersSection({
             </button>
           </div>
 
-          {categories.map((category) => {
+          {categories.map((category, categoryIndex) => {
             const isCategoryExpanded = expandedCategories.has(category.categoryId);
             const categorySnippets = allSnippets.filter((s) => s.category?.categoryId === category.categoryId);
 
             return (
               <div key={category.categoryId} className="folder-group">
                 <div
+                  className={`folder-drop-slot ${draggedCategoryId != null ? "visible" : ""} ${activeDropTarget === `folder-slot-${categoryIndex}` ? "active" : ""}`}
+                  onDragOver={(event) => onCategoryReorderDragOver(categoryIndex, event)}
+                  onDragLeave={(event) => onCategoryReorderDragLeave(categoryIndex, event)}
+                  onDrop={(event) => void onCategoryReorderDrop(categoryIndex, event)}
+                />
+                <div
                   className={`folder-item ${openFolderMenuId === category.categoryId ? "menu-open" : ""}`}
-                  onDragOver={(event) => onSnippetDragOver(category.categoryId, event)}
-                  onDragLeave={(event) => onSnippetDragLeave(category.categoryId, event)}
-                  onDrop={(event) => void onSnippetDrop(category.categoryId, event)}
+                  onDragOver={(event) => onFolderItemDragOver(category.categoryId, event)}
+                  onDragLeave={(event) => onFolderItemDragLeave(category.categoryId, event)}
+                  onDrop={(event) => void onFolderItemDrop(category.categoryId, event)}
                   onContextMenu={(event) => {
                     event.preventDefault();
                     onToggleFolderMenu(category.categoryId, event.currentTarget, { x: event.clientX, y: event.clientY });
@@ -124,6 +148,16 @@ export function FoldersSection({
                     <span className="card-meta">{category.snippetCount}</span>
                   </button>
                   <div className="row-actions">
+                    <button
+                      className="icon-button ghost mini folder-drag-handle"
+                      draggable
+                      data-tooltip="Reorder folder"
+                      onDragStart={(event) => onCategoryDragStart(category, event)}
+                      onDragEnd={onCategoryDragEnd}
+                      onClick={(event) => event.preventDefault()}
+                    >
+                      <GripVertical size={14} />
+                    </button>
                     <button
                       className="icon-button ghost mini"
                       data-menu-trigger="true"
@@ -182,6 +216,14 @@ export function FoldersSection({
               </div>
             );
           })}
+          {categories.length > 0 && (
+            <div
+              className={`folder-drop-slot ${draggedCategoryId != null ? "visible" : ""} ${activeDropTarget === `folder-slot-${categories.length}` ? "active" : ""}`}
+              onDragOver={(event) => onCategoryReorderDragOver(categories.length, event)}
+              onDragLeave={(event) => onCategoryReorderDragLeave(categories.length, event)}
+              onDrop={(event) => void onCategoryReorderDrop(categories.length, event)}
+            />
+          )}
         </>
       )}
     </>

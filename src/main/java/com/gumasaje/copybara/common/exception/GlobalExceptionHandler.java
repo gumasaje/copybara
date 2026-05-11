@@ -57,6 +57,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("INVALID_ATTACHMENT", exception.getMessage());
     }
 
+    @ExceptionHandler(InvalidCategoryOrderException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleInvalidCategoryOrderException(InvalidCategoryOrderException exception) {
+        return new ErrorResponse("INVALID_CATEGORY_ORDER", exception.getMessage());
+    }
+
     @ExceptionHandler(AttachmentStorageException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleAttachmentStorageException(AttachmentStorageException exception) {

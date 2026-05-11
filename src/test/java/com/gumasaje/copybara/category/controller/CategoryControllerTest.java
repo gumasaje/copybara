@@ -3,6 +3,7 @@ package com.gumasaje.copybara.category.controller;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +39,7 @@ class CategoryControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.categoryId").isNumber())
                 .andExpect(jsonPath("$.name").value("알고리즘"))
+                .andExpect(jsonPath("$.sortOrder").value(1))
                 .andExpect(jsonPath("$.snippetCount").value(0));
     }
 
@@ -57,6 +59,7 @@ class CategoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.categoryId").value(categoryId))
                 .andExpect(jsonPath("$.name").value("서버"))
+                .andExpect(jsonPath("$.sortOrder").value(1))
                 .andExpect(jsonPath("$.snippetCount").value(0));
     }
 
@@ -74,9 +77,58 @@ class CategoryControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].categoryId").value(backendCategoryId))
+                .andExpect(jsonPath("$[0].sortOrder").value(1))
                 .andExpect(jsonPath("$[0].snippetCount").value(2))
                 .andExpect(jsonPath("$[1].categoryId").value(algorithmCategoryId))
+                .andExpect(jsonPath("$[1].sortOrder").value(2))
                 .andExpect(jsonPath("$[1].snippetCount").value(1));
+    }
+
+    @Test
+    void reorderCategoriesReturnsCategoriesInUpdatedOrder() throws Exception {
+        String accessToken = signupAndLogin("category-order@example.com", "category-order-user");
+        Long backendCategoryId = createCategory(accessToken, "백엔드");
+        Long algorithmCategoryId = createCategory(accessToken, "알고리즘");
+        Long databaseCategoryId = createCategory(accessToken, "데이터베이스");
+
+        mockMvc.perform(patch("/api/categories/order")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "orderedCategoryIds": [%d, %d, %d]
+                                }
+                                """.formatted(databaseCategoryId, backendCategoryId, algorithmCategoryId)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/categories")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryId").value(databaseCategoryId))
+                .andExpect(jsonPath("$[0].sortOrder").value(1))
+                .andExpect(jsonPath("$[1].categoryId").value(backendCategoryId))
+                .andExpect(jsonPath("$[1].sortOrder").value(2))
+                .andExpect(jsonPath("$[2].categoryId").value(algorithmCategoryId))
+                .andExpect(jsonPath("$[2].sortOrder").value(3));
+    }
+
+    @Test
+    void reorderCategoriesReturnsBadRequestWhenRequestDoesNotMatchOwnedCategories() throws Exception {
+        String accessToken = signupAndLogin("category-order-invalid@example.com", "category-order-invalid-user");
+        Long backendCategoryId = createCategory(accessToken, "백엔드");
+        createCategory(accessToken, "알고리즘");
+
+        mockMvc.perform(patch("/api/categories/order")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "orderedCategoryIds": [%d]
+                                }
+                                """.formatted(backendCategoryId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATEGORY_ORDER"))
+                .andExpect(jsonPath("$.message").value("카테고리 순서 정보가 올바르지 않습니다."));
     }
 
     @Test

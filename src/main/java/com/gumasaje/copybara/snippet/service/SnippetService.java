@@ -142,12 +142,7 @@ public class SnippetService {
 
     public SnippetDetailResponse moveCategory(Long memberId, Long snippetId, SnippetCategoryMoveRequest request) {
         Snippet snippet = findOwnedSnippet(memberId, snippetId);
-        snippet.update(
-                resolveCategory(memberId, request.categoryId()),
-                snippet.getTitle(),
-                snippet.getContent(),
-                snippet.getLanguage()
-        );
+        snippet.moveCategory(resolveCategory(memberId, request.categoryId()));
         return toDetailResponse(snippet);
     }
 

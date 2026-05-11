@@ -29,6 +29,9 @@ public class Category {
     @Column(nullable = false, length = 50)
     private String name;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -37,13 +40,18 @@ public class Category {
 
     protected Category() {}
 
-    public Category(Member member, String name) {
+    public Category(Member member, String name, int sortOrder) {
         this.member = member;
         this.name = name;
+        this.sortOrder = sortOrder;
     }
 
     public void updateName(String name) {
         this.name = name;
+    }
+
+    public void updateSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
     }
 
     @PrePersist
@@ -68,6 +76,10 @@ public class Category {
 
     public String getName() {
         return name;
+    }
+
+    public Integer getSortOrder() {
+        return sortOrder;
     }
 
     public LocalDateTime getCreatedAt() {

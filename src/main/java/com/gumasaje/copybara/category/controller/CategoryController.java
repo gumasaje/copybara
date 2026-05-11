@@ -2,6 +2,7 @@ package com.gumasaje.copybara.category.controller;
 
 import com.gumasaje.copybara.auth.service.AuthMember;
 import com.gumasaje.copybara.category.dto.CategoryCreateRequest;
+import com.gumasaje.copybara.category.dto.CategoryReorderRequest;
 import com.gumasaje.copybara.category.dto.CategoryResponse;
 import com.gumasaje.copybara.category.service.CategoryService;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,6 +42,15 @@ public class CategoryController {
     @GetMapping
     public List<CategoryResponse> getCategories(@AuthenticationPrincipal AuthMember authMember) {
         return categoryService.getCategories(authMember.memberId());
+    }
+
+    @PatchMapping("/order")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reorder(
+            @AuthenticationPrincipal AuthMember authMember,
+            @Valid @RequestBody CategoryReorderRequest request
+    ) {
+        categoryService.reorder(authMember.memberId(), request);
     }
 
     @PutMapping("/{categoryId}")

@@ -19,7 +19,14 @@ export function OverviewListView({
   onRestoreSnippet,
   onDeleteSnippet
 }: OverviewListViewProps) {
-  const snippets = mode === "trash" ? trashSnippets : allSnippets;
+  const snippets = mode === "trash"
+    ? trashSnippets
+    : [...allSnippets].sort((left, right) => {
+        if (left.favorite !== right.favorite) {
+          return left.favorite ? -1 : 1;
+        }
+        return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+      });
 
   return (
     <section className="all-snippets-view">

@@ -41,7 +41,9 @@ const DEFAULT_FORM: SnippetFormState = {
 
 export default function App() {
   const detailPaneRef = useRef<HTMLElement | null>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const draggedSnippetRef = useRef<SnippetSummary | null>(null);
+  const draggedCategoryRef = useRef<Category | null>(null);
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -90,6 +92,7 @@ export default function App() {
   const [isRecentsExpanded, setIsRecentsExpanded] = useState(true);
   const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
+  const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
   const isSearchMode = keyword.trim().length > 0;
 
@@ -726,6 +729,7 @@ export default function App() {
     event.preventDefault();
     const draggingSnippet = draggedSnippetRef.current;
     if (!draggingSnippet) return;
+    const previousSidebarScrollTop = sidebarScrollRef.current?.scrollTop ?? 0;
 
     setActiveDropTarget(null);
 
@@ -743,10 +747,96 @@ export default function App() {
       } else {
         setIsRecentsExpanded(true);
       }
+      requestAnimationFrame(() => {
+        if (sidebarScrollRef.current) {
+          sidebarScrollRef.current.scrollTop = previousSidebarScrollTop;
+        }
+      });
     } catch (error) {
       setScreenError(error instanceof Error ? error.message : "폴더 이동에 실패했습니다.");
     } finally {
       draggedSnippetRef.current = null;
+    }
+  }
+
+  function handleCategoryDragStart(category: Category, event: React.DragEvent<HTMLElement>) {
+    draggedCategoryRef.current = category;
+    setDraggedCategoryId(category.categoryId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-copybara-category", String(category.categoryId));
+  }
+
+  function handleCategoryDragEnd() {
+    draggedCategoryRef.current = null;
+    setDraggedCategoryId(null);
+    setActiveDropTarget(null);
+  }
+
+  function handleFolderItemDragOver(categoryId: number, event: React.DragEvent<HTMLElement>) {
+    handleSnippetDragOver(categoryId, event);
+  }
+
+  function handleFolderItemDragLeave(categoryId: number, event: React.DragEvent<HTMLElement>) {
+    handleSnippetDragLeave(categoryId, event);
+  }
+
+  async function handleFolderItemDrop(categoryId: number, event: React.DragEvent<HTMLElement>) {
+    await handleSnippetDrop(categoryId, event);
+  }
+
+  function handleCategoryReorderDragOver(targetIndex: number, event: React.DragEvent<HTMLElement>) {
+    if (!draggedCategoryRef.current) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setActiveDropTarget(`folder-slot-${targetIndex}`);
+  }
+
+  function handleCategoryReorderDragLeave(targetIndex: number, event: React.DragEvent<HTMLElement>) {
+    if (!draggedCategoryRef.current) return;
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      const currentTarget = `folder-slot-${targetIndex}`;
+      setActiveDropTarget((prev) => (prev === currentTarget ? null : prev));
+    }
+  }
+
+  async function handleCategoryReorderDrop(targetIndex: number, event: React.DragEvent<HTMLElement>) {
+    event.preventDefault();
+    const draggingCategory = draggedCategoryRef.current;
+    if (!draggingCategory) return;
+
+    setActiveDropTarget(null);
+
+    try {
+      const orderedCategoryIds = categories.map((category) => category.categoryId);
+      const fromIndex = orderedCategoryIds.indexOf(draggingCategory.categoryId);
+
+      if (fromIndex < 0) {
+        throw new Error("카테고리 순서를 찾을 수 없습니다.");
+      }
+
+      const nextOrder = [...orderedCategoryIds];
+      const [movedCategoryId] = nextOrder.splice(fromIndex, 1);
+      const adjustedTargetIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      nextOrder.splice(adjustedTargetIndex, 0, movedCategoryId);
+
+      if (orderedCategoryIds.every((categoryId, index) => categoryId === nextOrder[index])) {
+        return;
+      }
+
+      await api.reorderCategories(nextOrder);
+
+      const categoryMap = new Map(categories.map((category) => [category.categoryId, category]));
+      setCategories(
+        nextOrder.map((categoryId, index) => ({
+          ...categoryMap.get(categoryId)!,
+          sortOrder: index + 1
+        }))
+      );
+    } catch (error) {
+      setScreenError(error instanceof Error ? error.message : "폴더 정렬에 실패했습니다.");
+    } finally {
+      draggedCategoryRef.current = null;
+      setDraggedCategoryId(null);
     }
   }
 
@@ -863,7 +953,12 @@ export default function App() {
           </div>
         </div>
 
-        <div className="sidebar-scroll-area">
+        <div
+          className="sidebar-scroll-area"
+          ref={(node) => {
+            sidebarScrollRef.current = node;
+          }}
+        >
           <div className="folder-list">
             {isSearchMode ? (
               <SearchResultsSection
@@ -940,6 +1035,15 @@ export default function App() {
                   onSnippetDragOver={handleSnippetDragOver}
                   onSnippetDragLeave={handleSnippetDragLeave}
                   onSnippetDrop={handleSnippetDrop}
+                  onCategoryDragStart={handleCategoryDragStart}
+                  onCategoryDragEnd={handleCategoryDragEnd}
+                  draggedCategoryId={draggedCategoryId}
+                  onFolderItemDragOver={handleFolderItemDragOver}
+                  onFolderItemDragLeave={handleFolderItemDragLeave}
+                  onFolderItemDrop={handleFolderItemDrop}
+                  onCategoryReorderDragOver={handleCategoryReorderDragOver}
+                  onCategoryReorderDragLeave={handleCategoryReorderDragLeave}
+                  onCategoryReorderDrop={handleCategoryReorderDrop}
                   onToggleSnippetMenu={toggleSidebarSnippetMenu}
                   onToggleFolderMenu={toggleFolderMenu}
                 />

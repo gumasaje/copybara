@@ -21,6 +21,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -80,6 +81,9 @@ public class Snippet {
 
     private LocalDateTime deletedAt;
 
+    @Transient
+    private boolean preserveUpdatedAt;
+
     protected Snippet() {}
 
     public Snippet(Member member, Category category, String title, String content, String language) {
@@ -103,6 +107,12 @@ public class Snippet {
 
     public void clearCategory() {
         this.category = null;
+        this.preserveUpdatedAt = true;
+    }
+
+    public void moveCategory(Category category) {
+        this.category = category;
+        this.preserveUpdatedAt = true;
     }
 
     public void replaceTags(List<Tag> tags) {
@@ -134,7 +144,12 @@ public class Snippet {
     }
 
     @PreUpdate
-    void onUpdate() { this.updatedAt = LocalDateTime.now(); }
+    void onUpdate() {
+        if (!preserveUpdatedAt) {
+            this.updatedAt = LocalDateTime.now();
+        }
+        this.preserveUpdatedAt = false;
+    }
 
     public Long getId() { return id; }
     public Member getMember() { return member; }

@@ -77,6 +77,12 @@ export const api = {
       body: JSON.stringify({ name })
     });
   },
+  reorderCategories(orderedCategoryIds: number[]) {
+    return request<void>("/api/categories/order", {
+      method: "PATCH",
+      body: JSON.stringify({ orderedCategoryIds })
+    });
+  },
   deleteCategory(categoryId: number) {
     return request<void>(`/api/categories/${categoryId}`, { method: "DELETE" });
   },

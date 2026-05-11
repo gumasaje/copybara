@@ -22,6 +22,7 @@ export type SnippetFormState = {
 export type Category = {
   categoryId: number;
   name: string;
+  sortOrder: number;
   snippetCount: number;
   createdAt: string;
   updatedAt: string;

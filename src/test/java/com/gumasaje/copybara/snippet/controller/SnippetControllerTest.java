@@ -371,6 +371,36 @@ class SnippetControllerTest {
     }
 
     @Test
+    void moveCategoryDoesNotChangeSnippetUpdatedAt() throws Exception {
+        String accessToken = signupAndLogin("snippet-category-move-timestamp@example.com", "snippet-category-move-timestamp-user");
+        Long sourceCategoryId = createCategory(accessToken, "백엔드");
+        Long targetCategoryId = createCategory(accessToken, "알고리즘");
+        Long snippetId = createSnippet(accessToken, "Move timestamp snippet", "move-timestamp-content", sourceCategoryId);
+
+        MvcResult beforeMove = mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String beforeUpdatedAt = extractStringValue(beforeMove.getResponse().getContentAsString(), "updatedAt");
+
+        MvcResult moveResult = mockMvc.perform(patch("/api/snippets/{snippetId}/category", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryId": %d
+                                }
+                                """.formatted(targetCategoryId)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String afterUpdatedAt = extractStringValue(moveResult.getResponse().getContentAsString(), "updatedAt");
+
+        org.assertj.core.api.Assertions.assertThat(afterUpdatedAt).isEqualTo(beforeUpdatedAt);
+    }
+
+    @Test
     void moveCategoryClearsCategoryWhenCategoryIdIsNull() throws Exception {
         String accessToken = signupAndLogin("snippet-category-clear@example.com", "snippet-category-clear-user");
         Long categoryId = createCategory(accessToken, "백엔드");
@@ -794,5 +824,12 @@ class SnippetControllerTest {
             end = responseBody.indexOf('}', start);
         }
         return Long.parseLong(responseBody.substring(start, end));
+    }
+
+    private String extractStringValue(String responseBody, String fieldName) {
+        String marker = "\"" + fieldName + "\":\"";
+        int start = responseBody.indexOf(marker) + marker.length();
+        int end = responseBody.indexOf('"', start);
+        return responseBody.substring(start, end);
     }
 }
