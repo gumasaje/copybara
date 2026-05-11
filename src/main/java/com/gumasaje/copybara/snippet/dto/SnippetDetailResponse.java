@@ -16,5 +16,6 @@ public record SnippetDetailResponse(
         List<String> tags,
         List<AttachmentResponse> attachments,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        LocalDateTime deletedAt
 ) {}

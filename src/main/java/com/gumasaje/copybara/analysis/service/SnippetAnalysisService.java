@@ -31,7 +31,7 @@ public class SnippetAnalysisService {
     }
 
     public SnippetAnalysisResponse analyze(Long memberId, Long snippetId) {
-        Snippet snippet = snippetRepository.findByIdAndMemberId(snippetId, memberId)
+        Snippet snippet = snippetRepository.findByIdAndMemberIdAndDeletedAtIsNull(snippetId, memberId)
                 .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
 
         SnippetAnalysisResult result = snippetAnalysisGenerator.generate(snippet);
@@ -52,7 +52,7 @@ public class SnippetAnalysisService {
 
     @Transactional(readOnly = true)
     public SnippetAnalysisResponse getAnalysis(Long memberId, Long snippetId) {
-        snippetRepository.findByIdAndMemberId(snippetId, memberId)
+        snippetRepository.findByIdAndMemberIdAndDeletedAtIsNull(snippetId, memberId)
                 .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
 
         SnippetAnalysis analysis = snippetAnalysisRepository.findBySnippetId(snippetId)

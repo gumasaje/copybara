@@ -76,8 +76,8 @@ public class SnippetService {
 
         if (normalizedKeyword == null && normalizedTag == null) {
             List<Snippet> snippets = categoryId == null
-                    ? snippetRepository.findAllByMemberIdOrderByUpdatedAtDesc(memberId)
-                    : snippetRepository.findAllByMemberIdAndCategoryIdOrderByUpdatedAtDesc(memberId, categoryId);
+                    ? snippetRepository.findAllByMemberIdAndDeletedAtIsNullOrderByUpdatedAtDesc(memberId)
+                    : snippetRepository.findAllByMemberIdAndCategoryIdAndDeletedAtIsNullOrderByUpdatedAtDesc(memberId, categoryId);
             return snippets
                     .stream()
                     .map(this::toSummaryResponse)
@@ -95,6 +95,19 @@ public class SnippetService {
         return toDetailResponse(findOwnedSnippet(memberId, snippetId));
     }
 
+    @Transactional(readOnly = true)
+    public List<SnippetSummaryResponse> getTrashSnippets(Long memberId) {
+        return snippetRepository.findAllByMemberIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(memberId)
+                .stream()
+                .map(this::toSummaryResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SnippetDetailResponse getTrashSnippet(Long memberId, Long snippetId) {
+        return toDetailResponse(findOwnedDeletedSnippet(memberId, snippetId));
+    }
+
     public SnippetDetailResponse update(Long memberId, Long snippetId, SnippetCreateRequest request) {
         Snippet snippet = findOwnedSnippet(memberId, snippetId);
         snippet.update(
@@ -108,7 +121,17 @@ public class SnippetService {
     }
 
     public void delete(Long memberId, Long snippetId) {
-        snippetRepository.delete(findOwnedSnippet(memberId, snippetId));
+        findOwnedSnippet(memberId, snippetId).softDelete();
+    }
+
+    public SnippetDetailResponse restore(Long memberId, Long snippetId) {
+        Snippet snippet = findOwnedDeletedSnippet(memberId, snippetId);
+        snippet.restore();
+        return toDetailResponse(snippet);
+    }
+
+    public void deletePermanently(Long memberId, Long snippetId) {
+        snippetRepository.delete(findOwnedDeletedSnippet(memberId, snippetId));
     }
 
     public SnippetDetailResponse updateFavorite(Long memberId, Long snippetId, SnippetFavoriteRequest request) {
@@ -139,7 +162,12 @@ public class SnippetService {
     }
 
     private Snippet findOwnedSnippet(Long memberId, Long snippetId) {
-        return snippetRepository.findByIdAndMemberId(snippetId, memberId)
+        return snippetRepository.findByIdAndMemberIdAndDeletedAtIsNull(snippetId, memberId)
+                .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
+    }
+
+    private Snippet findOwnedDeletedSnippet(Long memberId, Long snippetId) {
+        return snippetRepository.findByIdAndMemberIdAndDeletedAtIsNotNull(snippetId, memberId)
                 .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
     }
 
@@ -194,7 +222,8 @@ public class SnippetService {
                 snippet.isFavorite(),
                 extractTagNames(snippet),
                 snippet.getCreatedAt(),
-                snippet.getUpdatedAt()
+                snippet.getUpdatedAt(),
+                snippet.getDeletedAt()
         );
     }
 
@@ -210,7 +239,8 @@ public class SnippetService {
                 extractTagNames(snippet),
                 extractAttachments(snippet),
                 snippet.getCreatedAt(),
-                snippet.getUpdatedAt()
+                snippet.getUpdatedAt(),
+                snippet.getDeletedAt()
         );
     }
 

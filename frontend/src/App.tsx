@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
 import { java } from "@codemirror/lang-java";
@@ -103,6 +103,7 @@ function formatOverviewSecondary(snippet: SnippetSummary) {
 }
 
 export default function App() {
+  const detailPaneRef = useRef<HTMLElement | null>(null);
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -110,6 +111,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allSnippets, setAllSnippets] = useState<SnippetSummary[]>([]);
+  const [trashSnippets, setTrashSnippets] = useState<SnippetSummary[]>([]);
   const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(null);
   const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
   const [snippetDetail, setSnippetDetail] = useState<SnippetDetail | null>(null);
@@ -146,7 +148,7 @@ export default function App() {
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [isRecentsExpanded, setIsRecentsExpanded] = useState(true);
-  const [isViewingAll, setIsViewingAll] = useState(false);
+  const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
 
   const editorExtensions = useMemo(() => getExtensions(formState.language), [formState.language]);
   const isSearchMode = keyword.trim().length > 0;
@@ -158,6 +160,23 @@ export default function App() {
   const favoriteSnippets = useMemo(() => {
     return allSnippets.filter((s) => s.favorite);
   }, [allSnippets]);
+
+  const scopedSidebarSnippets = useMemo(() => {
+    if (selectedSidebarScope === "trash") {
+      return trashSnippets;
+    }
+    if (selectedSidebarScope === "favorites") {
+      return favoriteSnippets;
+    }
+    if (selectedSidebarScope === "recents") {
+      return uncategorizedSnippets;
+    }
+    if (selectedSidebarScope?.startsWith("folder-")) {
+      const categoryId = Number(selectedSidebarScope.replace("folder-", ""));
+      return allSnippets.filter((snippet) => snippet.category?.categoryId === categoryId);
+    }
+    return allSnippets;
+  }, [allSnippets, favoriteSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
 
   const toggleCategory = (categoryId: number) => {
     setExpandedCategories((prev) => {
@@ -237,13 +256,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (allSnippets.length > 0 && (selectedSnippetId == null || !allSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
-      setSelectedSnippetId(allSnippets[0].snippetId);
+    if (scopedSidebarSnippets.length > 0 && (selectedSnippetId == null || !scopedSidebarSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
+      setSelectedSnippetId(scopedSidebarSnippets[0].snippetId);
+      return;
     }
-    if (allSnippets.length === 0) {
+    if (scopedSidebarSnippets.length === 0) {
       setSelectedSnippetId(null);
     }
-  }, [allSnippets, selectedSnippetId]);
+  }, [scopedSidebarSnippets, selectedSnippetId]);
 
   useEffect(() => {
     if (!selectedSnippetId) {
@@ -254,14 +274,23 @@ export default function App() {
       return;
     }
     void refreshSnippet(selectedSnippetId);
-  }, [selectedSnippetId]);
+  }, [selectedSnippetId, selectedSidebarScope]);
+
+  useEffect(() => {
+    detailPaneRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [selectedSnippetId, selectedSidebarScope, overviewMode]);
 
   async function refreshWorkspace() {
     try {
       setScreenError(null);
-      const [categoryList, snippetList] = await Promise.all([api.getCategories(), api.getSnippets({ keyword })]);
+      const [categoryList, snippetList, trashList] = await Promise.all([
+        api.getCategories(),
+        api.getSnippets({ keyword }),
+        api.getTrashSnippets()
+      ]);
       setCategories(categoryList);
       setAllSnippets(snippetList);
+      setTrashSnippets(trashList);
     } catch (error) {
       setScreenError(error instanceof Error ? error.message : "화면을 불러오지 못했습니다.");
     }
@@ -269,9 +298,16 @@ export default function App() {
 
   async function refreshSnippet(snippetId: number) {
     try {
-      const detail = await api.getSnippet(snippetId);
+      const isTrashScope = selectedSidebarScope === "trash";
+      const detail = isTrashScope
+        ? await api.getTrashSnippet(snippetId)
+        : await api.getSnippet(snippetId);
       setSnippetDetail(detail);
       setNotesDraft(detail.notes ?? "");
+      if (isTrashScope) {
+        setSnippetAnalysis(null);
+        return;
+      }
       try {
         const analysis = await api.getAnalysis(snippetId);
         setSnippetAnalysis(analysis);
@@ -408,8 +444,9 @@ export default function App() {
     if (!snippetDetail) return;
     try {
       const updated = await api.updateFavorite(snippetDetail.snippetId, !snippetDetail.favorite);
-      setSnippetDetail(updated);
       await refreshWorkspace();
+      focusSnippet(updated);
+      setSnippetDetail(updated);
     } catch (error) {
       setScreenError(error instanceof Error ? error.message : "즐겨찾기 변경에 실패했습니다.");
     }
@@ -417,17 +454,39 @@ export default function App() {
 
   function openDeleteSnippetDialog() {
     if (!snippetDetail) return;
+    const isTrashSnippet = snippetDetail.deletedAt != null;
     setConfirmDialog({
-      title: "Delete snippet",
-      message: `"${snippetDetail.title}" will be deleted permanently.`,
-      confirmLabel: "Delete snippet",
+      title: isTrashSnippet ? "Delete permanently" : "Move to trash",
+      message: isTrashSnippet
+              ? `"${snippetDetail.title}" will be deleted permanently.`
+              : `"${snippetDetail.title}" will be moved to Trash.`,
+      confirmLabel: isTrashSnippet ? "Delete permanently" : "Move to trash",
       tone: "danger",
       onConfirm: async () => {
-        await api.deleteSnippet(snippetDetail.snippetId);
-        setSelectedSnippetId(null);
+        if (isTrashSnippet) {
+          await api.deleteSnippetPermanently(snippetDetail.snippetId);
+          goHome();
+          setSnippetDetail(null);
+        } else {
+          await api.deleteSnippet(snippetDetail.snippetId);
+          setSelectedSidebarScope("trash");
+          setSelectedSnippetId(snippetDetail.snippetId);
+        }
         await refreshWorkspace();
       }
     });
+  }
+
+  async function handleRestoreSnippet(snippetId: number) {
+    try {
+      const restored = await api.restoreSnippet(snippetId);
+      await refreshWorkspace();
+      focusSnippet(restored);
+      setSnippetDetail(restored);
+      setNotesDraft(restored.notes ?? "");
+    } catch (error) {
+      setScreenError(error instanceof Error ? error.message : "스니펫 복구에 실패했습니다.");
+    }
   }
 
   async function handleConfirmDialog() {
@@ -481,7 +540,7 @@ export default function App() {
     setSearchInput("");
     setExpandedCategories(new Set());
     setIsRecentsExpanded(true);
-    setIsViewingAll(false);
+    setOverviewMode(null);
     setOpenFolderMenuId(null);
     setOpenSidebarSnippetMenuId(null);
     if (uncategorizedSnippets.length > 0) {
@@ -496,9 +555,28 @@ export default function App() {
   }
 
   function openSnippetFromSidebar(snippetId: number, scope: string) {
-    setIsViewingAll(false);
+    setOverviewMode(null);
     setSelectedSidebarScope(scope);
     setSelectedSnippetId(snippetId);
+  }
+
+  function focusSnippet(snippet: SnippetDetail | SnippetSummary) {
+    if (snippet.deletedAt != null) {
+      setSelectedSidebarScope("trash");
+      setSelectedSnippetId(snippet.snippetId);
+      return;
+    }
+    if (snippet.category?.categoryId != null) {
+      setExpandedCategories((prev) => new Set(prev).add(snippet.category!.categoryId));
+      setSelectedSidebarScope(`folder-${snippet.category.categoryId}`);
+    } else if (snippet.favorite) {
+      setIsFavoritesExpanded(true);
+      setSelectedSidebarScope("favorites");
+    } else {
+      setIsRecentsExpanded(true);
+      setSelectedSidebarScope("recents");
+    }
+    setSelectedSnippetId(snippet.snippetId);
   }
 
   function sidebarSnippetMenuKey(scope: string, snippetId: number) {
@@ -587,14 +665,7 @@ export default function App() {
         await updateSnippetMeta(snippetModalTarget.snippetId, { title: nextTitle });
       } else {
         const moved = await updateSnippetMeta(snippetModalTarget.snippetId, { categoryId: snippetMoveCategoryId });
-        setSelectedSnippetId(moved.snippetId);
-        if (moved.category?.categoryId != null) {
-          setExpandedCategories((prev) => new Set(prev).add(moved.category!.categoryId));
-          setSelectedSidebarScope(`folder-${moved.category.categoryId}`);
-        } else {
-          setIsRecentsExpanded(true);
-          setSelectedSidebarScope("recents");
-        }
+        focusSnippet(moved);
       }
       closeSnippetModal();
     } catch (error) {
@@ -603,15 +674,25 @@ export default function App() {
   }
 
   function openDeleteSnippetDialogFromSummary(snippet: SnippetSummary) {
+    const isTrashSnippet = snippet.deletedAt != null;
     setConfirmDialog({
-      title: "Delete snippet",
-      message: `"${snippet.title}" will be deleted permanently.`,
-      confirmLabel: "Delete snippet",
+      title: isTrashSnippet ? "Delete permanently" : "Move to trash",
+      message: isTrashSnippet
+              ? `"${snippet.title}" will be deleted permanently.`
+              : `"${snippet.title}" will be moved to Trash.`,
+      confirmLabel: isTrashSnippet ? "Delete permanently" : "Move to trash",
       tone: "danger",
       onConfirm: async () => {
-        await api.deleteSnippet(snippet.snippetId);
-        if (selectedSnippetId === snippet.snippetId) {
-          setSelectedSnippetId(null);
+        if (isTrashSnippet) {
+          await api.deleteSnippetPermanently(snippet.snippetId);
+          if (selectedSnippetId === snippet.snippetId) {
+            goHome();
+            setSnippetDetail(null);
+          }
+        } else {
+          await api.deleteSnippet(snippet.snippetId);
+          setSelectedSidebarScope("trash");
+          setSelectedSnippetId(snippet.snippetId);
         }
         await refreshWorkspace();
       }
@@ -860,7 +941,7 @@ export default function App() {
                   <button
                     className="view-all-button"
                     onClick={() => {
-                      setIsViewingAll(true);
+                      setOverviewMode("all");
                       setIsRecentsExpanded(true);
                     }}
                   >
@@ -968,7 +1049,7 @@ export default function App() {
                         <button
                           className={`folder-row llm-card ${isExpanded ? "expanded" : ""}`}
                           onClick={() => {
-                            setIsViewingAll(false);
+                            setOverviewMode(null);
                             toggleCategory(category.categoryId);
                           }}
                         >
@@ -1103,6 +1184,19 @@ export default function App() {
         </div>
 
         <div className="sidebar-footer">
+          <button
+            className={`sidebar-utility-button ${overviewMode === "trash" ? "active" : ""}`}
+            onClick={() => setOverviewMode("trash")}
+          >
+            <span className="sidebar-utility-main">
+              <Trash2 size={14} />
+              <span className="sidebar-utility-copy">
+                <span className="sidebar-utility-label">Trash</span>
+                <span className="sidebar-utility-subtle">Recently deleted</span>
+              </span>
+            </span>
+            {trashSnippets.length > 0 && <span className="sidebar-utility-count">{trashSnippets.length}</span>}
+          </button>
           <div className="user-card">
             <div className="avatar">{user.nickname.charAt(0).toUpperCase()}</div>
             <div className="user-info">
@@ -1115,7 +1209,12 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="detail-pane workspace-pane">
+      <main
+        className="detail-pane workspace-pane"
+        ref={(node) => {
+          detailPaneRef.current = node;
+        }}
+      >
         {!isSidebarOpen && (
           <div className="floating-toggle">
             <button className="icon-button" onClick={() => setIsSidebarOpen(true)} data-tooltip="Show sidebar · Ctrl/Cmd+B">
@@ -1127,28 +1226,33 @@ export default function App() {
           </div>
         )}
         {screenError && <div className="banner error">{screenError}</div>}
-        {isViewingAll ? (
+        {overviewMode ? (
           <section className="all-snippets-view">
             <div className="pane-header detail-pane-header">
               <div>
                 <span className="eyebrow">Library</span>
-                <h1 className="workspace-title">All snippets</h1>
+                <h1 className="workspace-title">{overviewMode === "trash" ? "Trash" : "All snippets"}</h1>
+                <p className="overview-caption">
+                  {overviewMode === "trash"
+                    ? `${trashSnippets.length} deleted snippet${trashSnippets.length === 1 ? "" : "s"}`
+                    : `${allSnippets.length} snippet${allSnippets.length === 1 ? "" : "s"} in your archive`}
+                </p>
               </div>
             </div>
             <div className="all-snippets-list">
-              {allSnippets.length === 0 ? (
+              {(overviewMode === "trash" ? trashSnippets : allSnippets).length === 0 ? (
                 <div className="empty-list-card">
-                  <h3>No snippets yet.</h3>
-                  <p>Create a snippet to start building the archive.</p>
+                  <h3>{overviewMode === "trash" ? "Trash is empty." : "No snippets yet."}</h3>
+                  <p>{overviewMode === "trash" ? "Deleted snippets will appear here." : "Create a snippet to start building the archive."}</p>
                 </div>
               ) : (
-                allSnippets.map((snippet) => (
+                (overviewMode === "trash" ? trashSnippets : allSnippets).map((snippet) => (
                   <button
                     key={snippet.snippetId}
                     className="overview-row"
                     onClick={() => {
-                      setIsViewingAll(false);
-                      setSelectedSidebarScope(null);
+                      setOverviewMode(null);
+                      setSelectedSidebarScope(overviewMode === "trash" ? "trash" : null);
                       setSelectedSnippetId(snippet.snippetId);
                     }}
                   >
@@ -1158,11 +1262,36 @@ export default function App() {
                           <h3>{snippet.title}</h3>
                           {snippet.favorite && <Star size={14} className="favorite-icon" />}
                         </div>
-                        <p>{formatOverviewSecondary(snippet)}</p>
+                        <p>{overviewMode === "trash" ? `Deleted · ${formatOverviewSecondary(snippet)}` : formatOverviewSecondary(snippet)}</p>
                       </div>
                     </div>
                     <div className="overview-row-meta">
-                      <span>{formatOverviewTimestamp(snippet.updatedAt)}</span>
+                      {overviewMode === "trash" ? (
+                        <div className="overview-row-actions">
+                          <button
+                            className="icon-button ghost mini"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleRestoreSnippet(snippet.snippetId);
+                            }}
+                            data-tooltip="Restore"
+                          >
+                            <FolderOpen size={14} />
+                          </button>
+                          <button
+                            className="icon-button ghost mini danger-icon"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openDeleteSnippetDialogFromSummary(snippet);
+                            }}
+                            data-tooltip="Delete permanently"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span>{formatOverviewTimestamp(snippet.updatedAt)}</span>
+                      )}
                     </div>
                   </button>
                 ))
@@ -1177,15 +1306,28 @@ export default function App() {
                 <h1 className="workspace-title">{snippetDetail.title}</h1>
               </div>
               <div className="header-actions">
-                <button className="icon-button" onClick={() => void handleFavoriteToggle()} data-tooltip="Favorite">
-                  <Star size={16} className={snippetDetail.favorite ? "favorite-icon" : ""} />
-                </button>
-                <button className="icon-button" onClick={openEditSnippet} data-tooltip="Edit snippet">
-                  <Pencil size={16} />
-                </button>
-                <button className="icon-button" onClick={openDeleteSnippetDialog} data-tooltip="Delete snippet">
-                  <Trash2 size={16} />
-                </button>
+                {snippetDetail.deletedAt == null ? (
+                  <>
+                    <button className="icon-button" onClick={() => void handleFavoriteToggle()} data-tooltip="Favorite">
+                      <Star size={16} className={snippetDetail.favorite ? "favorite-icon" : ""} />
+                    </button>
+                    <button className="icon-button" onClick={openEditSnippet} data-tooltip="Edit snippet">
+                      <Pencil size={16} />
+                    </button>
+                    <button className="icon-button" onClick={openDeleteSnippetDialog} data-tooltip="Move to trash">
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="icon-button" onClick={() => void handleRestoreSnippet(snippetDetail.snippetId)} data-tooltip="Restore">
+                      <FolderOpen size={16} />
+                    </button>
+                    <button className="icon-button" onClick={openDeleteSnippetDialog} data-tooltip="Delete permanently">
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1204,10 +1346,12 @@ export default function App() {
                 <button className="secondary-button compact" onClick={() => navigator.clipboard.writeText(snippetDetail.content)}>
                   Copy
                 </button>
-                <button className="primary-button compact" onClick={() => void handleAnalyze()}>
+                {snippetDetail.deletedAt == null && (
+                  <button className="primary-button compact" onClick={() => void handleAnalyze()}>
                   <Sparkles size={16} />
                   AI summarize
-                </button>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1236,8 +1380,12 @@ export default function App() {
                   <textarea
                     value={notesDraft}
                     onChange={(event) => setNotesDraft(event.target.value)}
+                    disabled={snippetDetail.deletedAt != null}
                     placeholder="Leave a quick note..."
                     onKeyDown={(event) => {
+                      if (snippetDetail.deletedAt != null) {
+                        return;
+                      }
                       if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                         event.preventDefault();
                         void handleSaveNotes();
@@ -1245,8 +1393,14 @@ export default function App() {
                     }}
                   />
                   <div className="memo-editor-footer">
-                    <span className="shortcut-hint">{notesStatus ?? "Ctrl/Cmd + Enter to save"}</span>
-                    <button className="primary-button compact" onClick={() => void handleSaveNotes()} disabled={isSavingNotes}>
+                    <span className="shortcut-hint">
+                      {snippetDetail.deletedAt != null ? "Restore this snippet to edit notes." : notesStatus ?? "Ctrl/Cmd + Enter to save"}
+                    </span>
+                    <button
+                      className="primary-button compact"
+                      onClick={() => void handleSaveNotes()}
+                      disabled={isSavingNotes || snippetDetail.deletedAt != null}
+                    >
                       {isSavingNotes ? "Saving..." : "Save notes"}
                     </button>
                   </div>
@@ -1282,7 +1436,11 @@ export default function App() {
                   <span className="eyebrow">AI assist</span>
                   <h3>AI Summary</h3>
                 </div>
-                <button className="primary-button compact" onClick={() => void handleAnalyze()}>
+                <button
+                  className="primary-button compact"
+                  onClick={() => void handleAnalyze()}
+                  disabled={snippetDetail.deletedAt != null}
+                >
                   <Sparkles size={16} />
                   Run
                 </button>
@@ -1304,7 +1462,11 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                <p className="muted-text">No analysis yet. Run the assistant when you want a summary and tag hints.</p>
+                <p className="muted-text">
+                  {snippetDetail.deletedAt != null
+                    ? "Restore this snippet to run AI summary."
+                    : "No analysis yet. Run the assistant when you want a summary and tag hints."}
+                </p>
               )}
             </section>
           </>

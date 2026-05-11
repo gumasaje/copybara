@@ -656,6 +656,62 @@ button {
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.02);
 }
 
+.sidebar-utility-button {
+  width: calc(100% - 16px);
+  margin: 0 8px 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #d0d6e0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.sidebar-utility-button:hover,
+.sidebar-utility-button.active {
+  background: #111318;
+  color: #f7f8f8;
+}
+
+.sidebar-utility-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sidebar-utility-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.sidebar-utility-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: inherit;
+}
+
+.sidebar-utility-subtle {
+  font-size: 11px;
+  color: #62666d;
+}
+
+.sidebar-utility-count {
+  font-size: 11px;
+  color: #d0d6e0;
+  background: #1a1d24;
+  border: 1px solid #23252a;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
 .folder-row {
   display: flex !important;
   flex-direction: row !important;
@@ -891,6 +947,12 @@ button {
   gap: 16px;
 }
 
+.overview-caption {
+  margin: 6px 0 0;
+  color: #8a8f98;
+  font-size: 13px;
+}
+
 .all-snippets-list {
   display: flex;
   flex-direction: column;
@@ -958,6 +1020,20 @@ button {
   font-size: 13px;
   white-space: nowrap;
   padding-top: 2px;
+}
+
+.overview-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.danger-icon {
+  color: #ef6b73;
+}
+
+.danger-icon:hover {
+  color: #ff8d94;
 }
 
 .pane-header,

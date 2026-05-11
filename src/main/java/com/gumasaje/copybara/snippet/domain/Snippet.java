@@ -78,6 +78,8 @@ public class Snippet {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    private LocalDateTime deletedAt;
+
     protected Snippet() {}
 
     public Snippet(Member member, Category category, String title, String content, String language) {
@@ -112,6 +114,18 @@ public class Snippet {
         this.favorite = favorite;
     }
 
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
     @PrePersist
     void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -134,4 +148,5 @@ public class Snippet {
     public List<Attachment> getAttachments() { return attachments; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
 }

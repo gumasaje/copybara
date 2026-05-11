@@ -9,17 +9,20 @@ import org.springframework.data.repository.query.Param;
 
 public interface SnippetRepository extends JpaRepository<Snippet, Long> {
 
-    List<Snippet> findAllByMemberIdOrderByUpdatedAtDesc(Long memberId);
+    List<Snippet> findAllByMemberIdAndDeletedAtIsNullOrderByUpdatedAtDesc(Long memberId);
 
-    List<Snippet> findAllByMemberIdAndCategoryIdOrderByUpdatedAtDesc(Long memberId, Long categoryId);
+    List<Snippet> findAllByMemberIdAndCategoryIdAndDeletedAtIsNullOrderByUpdatedAtDesc(Long memberId, Long categoryId);
 
-    long countByMemberIdAndCategoryId(Long memberId, Long categoryId);
+    List<Snippet> findAllByMemberIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(Long memberId);
+
+    long countByMemberIdAndCategoryIdAndDeletedAtIsNull(Long memberId, Long categoryId);
 
     @Query("""
             select distinct s
             from Snippet s
             left join s.tags t
             where s.member.id = :memberId
+              and s.deletedAt is null
               and (:categoryId is null or s.category.id = :categoryId)
               and (
                 :keyword is null
@@ -36,5 +39,7 @@ public interface SnippetRepository extends JpaRepository<Snippet, Long> {
             @Param("normalizedTag") String normalizedTag
     );
 
-    Optional<Snippet> findByIdAndMemberId(Long id, Long memberId);
+    Optional<Snippet> findByIdAndMemberIdAndDeletedAtIsNull(Long id, Long memberId);
+
+    Optional<Snippet> findByIdAndMemberIdAndDeletedAtIsNotNull(Long id, Long memberId);
 }

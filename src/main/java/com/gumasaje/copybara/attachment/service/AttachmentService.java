@@ -94,7 +94,7 @@ public class AttachmentService {
     }
 
     private Snippet getOwnedSnippet(Long memberId, Long snippetId) {
-        return snippetRepository.findByIdAndMemberId(snippetId, memberId)
+        return snippetRepository.findByIdAndMemberIdAndDeletedAtIsNull(snippetId, memberId)
                 .orElseThrow(() -> new SnippetNotFoundException("해당 스니펫을 찾을 수 없습니다."));
     }
 

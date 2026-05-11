@@ -12,5 +12,6 @@ public record SnippetSummaryResponse(
         boolean favorite,
         List<String> tags,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        LocalDateTime deletedAt
 ) {}

@@ -61,7 +61,7 @@ public class CategoryService {
 
     public void delete(Long memberId, Long categoryId) {
         Category category = findOwnedCategory(memberId, categoryId);
-        List<Snippet> snippets = snippetRepository.findAllByMemberIdAndCategoryIdOrderByUpdatedAtDesc(memberId, categoryId);
+        List<Snippet> snippets = snippetRepository.findAllByMemberIdAndCategoryIdAndDeletedAtIsNullOrderByUpdatedAtDesc(memberId, categoryId);
         snippets.forEach(Snippet::clearCategory);
         categoryRepository.delete(category);
     }
@@ -92,7 +92,7 @@ public class CategoryService {
         return new CategoryResponse(
                 category.getId(),
                 category.getName(),
-                snippetRepository.countByMemberIdAndCategoryId(category.getMember().getId(), category.getId()),
+                snippetRepository.countByMemberIdAndCategoryIdAndDeletedAtIsNull(category.getMember().getId(), category.getId()),
                 category.getCreatedAt(),
                 category.getUpdatedAt()
         );

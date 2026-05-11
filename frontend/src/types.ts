@@ -36,6 +36,7 @@ export type SnippetSummary = {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 };
 
 export type SnippetDetail = {
@@ -50,6 +51,7 @@ export type SnippetDetail = {
   attachments: Attachment[];
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 };
 
 export type SnippetAnalysis = {

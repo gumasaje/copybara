@@ -82,6 +82,19 @@ public class SnippetController {
         return snippetService.getMySnippet(authMember.memberId(), snippetId);
     }
 
+    @GetMapping("/trash")
+    public List<SnippetSummaryResponse> getTrashSnippets(@AuthenticationPrincipal AuthMember authMember) {
+        return snippetService.getTrashSnippets(authMember.memberId());
+    }
+
+    @GetMapping("/trash/{snippetId}")
+    public SnippetDetailResponse getTrashSnippet(
+            @AuthenticationPrincipal AuthMember authMember,
+            @PathVariable Long snippetId
+    ) {
+        return snippetService.getTrashSnippet(authMember.memberId(), snippetId);
+    }
+
     @PutMapping("/{snippetId}")
     public SnippetDetailResponse update(
             @AuthenticationPrincipal AuthMember authMember,
@@ -104,6 +117,20 @@ public class SnippetController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
         snippetService.delete(authMember.memberId(), snippetId);
+    }
+
+    @PatchMapping("/{snippetId}/restore")
+    public SnippetDetailResponse restore(
+            @AuthenticationPrincipal AuthMember authMember,
+            @PathVariable Long snippetId
+    ) {
+        return snippetService.restore(authMember.memberId(), snippetId);
+    }
+
+    @DeleteMapping("/{snippetId}/permanent")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePermanently(@AuthenticationPrincipal AuthMember authMember, @PathVariable Long snippetId) {
+        snippetService.deletePermanently(authMember.memberId(), snippetId);
     }
 
     @PutMapping("/{snippetId}/favorite")

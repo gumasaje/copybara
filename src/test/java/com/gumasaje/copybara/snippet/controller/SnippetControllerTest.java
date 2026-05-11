@@ -548,6 +548,17 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNoContent());
 
+        mockMvc.perform(get("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        mockMvc.perform(get("/api/snippets/trash")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].snippetId").value(snippetId))
+                .andExpect(jsonPath("$[0].deletedAt").isString());
+
         mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound())
@@ -589,7 +600,63 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNoContent());
 
+        mockMvc.perform(get("/api/snippets/trash/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.deletedAt").isString());
+
         mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));
+    }
+
+    @Test
+    void restoreSnippetReturnsRestoredDetailAndRemovesItFromTrash() throws Exception {
+        String accessToken = signupAndLogin("snippet-restore@example.com", "snippet-restore-user");
+        Long snippetId = createSnippet(accessToken, "Restore snippet", "restore-content");
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(patch("/api/snippets/{snippetId}/restore", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.deletedAt").value(nullValue()));
+
+        mockMvc.perform(get("/api/snippets/trash")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId));
+    }
+
+    @Test
+    void deleteSnippetPermanentlyRemovesSnippetFromTrash() throws Exception {
+        String accessToken = signupAndLogin("snippet-permanent-delete@example.com", "snippet-permanent-delete-user");
+        Long snippetId = createSnippet(accessToken, "Permanent delete snippet", "permanent-delete-content");
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}/permanent", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/snippets/trash")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        mockMvc.perform(get("/api/snippets/trash/{snippetId}", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));

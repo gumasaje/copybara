@@ -91,6 +91,12 @@ export const api = {
   getSnippet(snippetId: number) {
     return request<SnippetDetail>(`/api/snippets/${snippetId}`);
   },
+  getTrashSnippets() {
+    return request<SnippetSummary[]>("/api/snippets/trash");
+  },
+  getTrashSnippet(snippetId: number) {
+    return request<SnippetDetail>(`/api/snippets/trash/${snippetId}`);
+  },
   createSnippet(payload: {
     title: string;
     content: string;
@@ -126,6 +132,12 @@ export const api = {
   },
   deleteSnippet(snippetId: number) {
     return request<void>(`/api/snippets/${snippetId}`, { method: "DELETE" });
+  },
+  restoreSnippet(snippetId: number) {
+    return request<SnippetDetail>(`/api/snippets/${snippetId}/restore`, { method: "PATCH" });
+  },
+  deleteSnippetPermanently(snippetId: number) {
+    return request<void>(`/api/snippets/${snippetId}/permanent`, { method: "DELETE" });
   },
   updateFavorite(snippetId: number, favorite: boolean) {
     return request<SnippetDetail>(`/api/snippets/${snippetId}/favorite`, {
