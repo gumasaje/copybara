@@ -502,6 +502,27 @@ button {
   transition: opacity 0.12s ease;
 }
 
+.section-label-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-icon-badge {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(130, 143, 255, 0.18);
+  border: 1px solid rgba(130, 143, 255, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorites-section-label svg {
+  color: #9aa4ff;
+}
+
 .view-all-button {
   border: 0;
   background: transparent;
@@ -1232,22 +1253,18 @@ button {
   z-index: 120;
 }
 
-.snippet-context-menu {
+.floating-context-menu {
+  position: fixed;
   top: 0;
-  right: calc(100% + 8px);
+  left: 0;
+  right: auto;
+}
+
+.snippet-context-menu {
   transform: none;
 }
 
 .folder-context-menu {
-  top: 50%;
-  right: calc(100% + 8px);
-  transform: translateY(-50%);
-}
-
-.snippet-context-menu.side-up,
-.folder-context-menu.side-up {
-  top: auto;
-  bottom: 0;
   transform: none;
 }
 

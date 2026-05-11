@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
 import { java } from "@codemirror/lang-java";
@@ -16,11 +17,11 @@ import {
   Pencil,
   PanelLeftClose,
   PanelLeftOpen,
+  Pin,
   Plus,
   X,
   Search,
   Sparkles,
-  Star,
   Trash2
 } from "lucide-react";
 import { api, getStoredToken, setStoredToken } from "./api";
@@ -103,6 +104,13 @@ function formatOverviewSecondary(snippet: SnippetSummary) {
   return parts.join(" · ");
 }
 
+function parseSidebarMenuKey(menuKey: string) {
+  const separatorIndex = menuKey.lastIndexOf(":");
+  const scope = menuKey.slice(0, separatorIndex);
+  const snippetId = Number(menuKey.slice(separatorIndex + 1));
+  return { scope, snippetId };
+}
+
 export default function App() {
   const detailPaneRef = useRef<HTMLElement | null>(null);
   const [token, setToken] = useState<string | null>(() => getStoredToken());
@@ -138,9 +146,9 @@ export default function App() {
     onConfirm: () => Promise<void> | void;
   } | null>(null);
   const [openFolderMenuId, setOpenFolderMenuId] = useState<number | null>(null);
-  const [openFolderMenuPlacement, setOpenFolderMenuPlacement] = useState<"side" | "side-up">("side");
+  const [openFolderMenuStyle, setOpenFolderMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const [openSidebarSnippetMenuId, setOpenSidebarSnippetMenuId] = useState<string | null>(null);
-  const [openSidebarSnippetMenuPlacement, setOpenSidebarSnippetMenuPlacement] = useState<"side" | "side-up">("side");
+  const [openSidebarSnippetMenuStyle, setOpenSidebarSnippetMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const [categoryDraft, setCategoryDraft] = useState("");
   const [snippetModalMode, setSnippetModalMode] = useState<"rename" | "move" | null>(null);
   const [snippetModalTarget, setSnippetModalTarget] = useState<SnippetSummary | null>(null);
@@ -148,6 +156,7 @@ export default function App() {
   const [snippetMoveCategoryId, setSnippetMoveCategoryId] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+  const [isFoldersExpanded, setIsFoldersExpanded] = useState(true);
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [isRecentsExpanded, setIsRecentsExpanded] = useState(true);
   const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
@@ -179,6 +188,30 @@ export default function App() {
     }
     return allSnippets;
   }, [allSnippets, favoriteSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
+
+  const activeSidebarMenuTarget = useMemo(() => {
+    if (!openSidebarSnippetMenuId) return null;
+    const { scope, snippetId } = parseSidebarMenuKey(openSidebarSnippetMenuId);
+
+    if (scope === "favorites") {
+      return { scope, snippet: favoriteSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
+    }
+    if (scope === "recents") {
+      return { scope, snippet: uncategorizedSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
+    }
+    if (scope.startsWith("folder-")) {
+      return {
+        scope,
+        snippet: allSnippets.find((snippet) => snippet.snippetId === snippetId && snippet.category?.categoryId === Number(scope.replace("folder-", ""))) ?? null
+      };
+    }
+    return { scope, snippet: allSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
+  }, [allSnippets, favoriteSnippets, openSidebarSnippetMenuId, uncategorizedSnippets]);
+
+  const activeFolderMenuCategory = useMemo(() => {
+    if (openFolderMenuId == null) return null;
+    return categories.find((category) => category.categoryId === openFolderMenuId) ?? null;
+  }, [categories, openFolderMenuId]);
 
   const toggleCategory = (categoryId: number) => {
     setExpandedCategories((prev) => {
@@ -231,12 +264,35 @@ export default function App() {
         return;
       }
       setOpenFolderMenuId(null);
+      setOpenFolderMenuStyle(null);
       setOpenSidebarSnippetMenuId(null);
+      setOpenSidebarSnippetMenuStyle(null);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    if (!openFolderMenuId && !openSidebarSnippetMenuId) {
+      return;
+    }
+
+    function closeFloatingMenus() {
+      setOpenFolderMenuId(null);
+      setOpenFolderMenuStyle(null);
+      setOpenSidebarSnippetMenuId(null);
+      setOpenSidebarSnippetMenuStyle(null);
+    }
+
+    window.addEventListener("resize", closeFloatingMenus);
+    document.addEventListener("scroll", closeFloatingMenus, true);
+
+    return () => {
+      window.removeEventListener("resize", closeFloatingMenus);
+      document.removeEventListener("scroll", closeFloatingMenus, true);
+    };
+  }, [openFolderMenuId, openSidebarSnippetMenuId]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -553,9 +609,12 @@ export default function App() {
     setSearchInput("");
     setExpandedCategories(new Set());
     setIsRecentsExpanded(true);
+    setIsFoldersExpanded(true);
     setOverviewMode(null);
     setOpenFolderMenuId(null);
+    setOpenFolderMenuStyle(null);
     setOpenSidebarSnippetMenuId(null);
+    setOpenSidebarSnippetMenuStyle(null);
     if (uncategorizedSnippets.length > 0) {
       setSelectedSidebarScope("recents");
       setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
@@ -596,23 +655,62 @@ export default function App() {
     return `${scope}:${snippetId}`;
   }
 
-  function resolveSideMenuPlacement(triggerElement: HTMLElement | null) {
-    if (!triggerElement) return "side";
-    const estimatedMenuHeight = 172;
-    const rect = triggerElement.getBoundingClientRect();
-    return rect.bottom + estimatedMenuHeight > window.innerHeight - 16 ? "side-up" : "side";
+  const SIDEBAR_SNIPPET_MENU_HEIGHT = 146;
+  const SIDEBAR_FOLDER_MENU_HEIGHT = 84;
+
+  function resolveFloatingMenuPosition(
+    triggerElement: HTMLElement | null,
+    estimatedMenuHeight: number,
+    estimatedMenuWidth = 160,
+    pointer?: { x: number; y: number }
+  ) {
+    const baseLeft = pointer?.x ?? triggerElement?.getBoundingClientRect().left ?? 0;
+    const baseTop = pointer?.y ?? triggerElement?.getBoundingClientRect().top ?? 0;
+    const maxLeft = window.innerWidth - estimatedMenuWidth - 12;
+    const maxTop = window.innerHeight - estimatedMenuHeight - 12;
+    const left = Math.min(Math.max(12, baseLeft), Math.max(12, maxLeft));
+    const top = Math.min(Math.max(12, baseTop), Math.max(12, maxTop));
+    if (!pointer && triggerElement) {
+      const rect = triggerElement.getBoundingClientRect();
+      const anchoredTop = rect.bottom + estimatedMenuHeight > window.innerHeight - 16
+        ? Math.max(12, rect.bottom - estimatedMenuHeight)
+        : rect.top;
+      const anchoredLeft = Math.max(12, rect.left - estimatedMenuWidth - 8);
+      return { top: anchoredTop, left: anchoredLeft };
+    }
+    return { top, left };
   }
 
-  function toggleSidebarSnippetMenu(menuKey: string, triggerElement: HTMLElement | null) {
+  function toggleSidebarSnippetMenu(
+    menuKey: string,
+    triggerElement: HTMLElement | null,
+    pointer?: { x: number; y: number }
+  ) {
     setOpenFolderMenuId(null);
-    setOpenSidebarSnippetMenuPlacement(resolveSideMenuPlacement(triggerElement));
-    setOpenSidebarSnippetMenuId((prev) => (prev === menuKey ? null : menuKey));
+    setOpenFolderMenuStyle(null);
+    setOpenSidebarSnippetMenuId((prev) => {
+      const next = prev === menuKey ? null : menuKey;
+      setOpenSidebarSnippetMenuStyle(
+        next ? resolveFloatingMenuPosition(triggerElement, SIDEBAR_SNIPPET_MENU_HEIGHT, 160, pointer) : null
+      );
+      return next;
+    });
   }
 
-  function toggleFolderMenu(categoryId: number, triggerElement: HTMLElement | null) {
+  function toggleFolderMenu(
+    categoryId: number,
+    triggerElement: HTMLElement | null,
+    pointer?: { x: number; y: number }
+  ) {
     setOpenSidebarSnippetMenuId(null);
-    setOpenFolderMenuPlacement(resolveSideMenuPlacement(triggerElement));
-    setOpenFolderMenuId((prev) => (prev === categoryId ? null : categoryId));
+    setOpenSidebarSnippetMenuStyle(null);
+    setOpenFolderMenuId((prev) => {
+      const next = prev === categoryId ? null : categoryId;
+      setOpenFolderMenuStyle(
+        next ? resolveFloatingMenuPosition(triggerElement, SIDEBAR_FOLDER_MENU_HEIGHT, 160, pointer) : null
+      );
+      return next;
+    });
   }
 
   async function updateSnippetMeta(snippetId: number, changes: { title?: string; categoryId?: number | null; favorite?: boolean }) {
@@ -737,7 +835,7 @@ export default function App() {
               </div>
               <div>
                 <Search size={16} />
-                <span>Search, favorites, and recents for quick retrieval</span>
+                <span>Search, pinned snippets, and recents for quick retrieval</span>
               </div>
             </div>
           </div>
@@ -858,7 +956,12 @@ export default function App() {
                   <>
                     <div className={`folder-header recents-header ${isFavoritesExpanded ? "expanded" : ""}`}>
                       <button className="recents-toggle" onClick={() => setIsFavoritesExpanded((prev) => !prev)}>
-                        <span className="eyebrow">Favorites</span>
+                        <span className="eyebrow section-label-with-icon favorites-section-label">
+                          <span className="section-icon-badge">
+                            <Pin size={10} />
+                          </span>
+                          Pinned
+                        </span>
                         <span className="recents-chevron">
                           {isFavoritesExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </span>
@@ -872,7 +975,11 @@ export default function App() {
                             className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "favorites" ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey("favorites", snippet.snippetId) ? "menu-open" : ""}`}
                             onContextMenu={(event) => {
                               event.preventDefault();
-                              toggleSidebarSnippetMenu(sidebarSnippetMenuKey("favorites", snippet.snippetId), event.currentTarget);
+                              toggleSidebarSnippetMenu(
+                                sidebarSnippetMenuKey("favorites", snippet.snippetId),
+                                event.currentTarget,
+                                { x: event.clientX, y: event.clientY }
+                              );
                             }}
                           >
                             <button
@@ -891,51 +998,6 @@ export default function App() {
                               >
                                 <MoreHorizontal size={14} />
                               </button>
-                              {openSidebarSnippetMenuId === sidebarSnippetMenuKey("favorites", snippet.snippetId) && (
-                                <div className={`context-menu snippet-context-menu ${openSidebarSnippetMenuPlacement}`}>
-                                  <button
-                                    className="context-menu-item"
-                                    onClick={() => {
-                                      setOpenSidebarSnippetMenuId(null);
-                                      void handleSidebarFavoriteToggle(snippet);
-                                    }}
-                                  >
-                                    <Star size={14} />
-                                    {snippet.favorite ? "Unfavorite" : "Favorite"}
-                                  </button>
-                                  <button
-                                    className="context-menu-item"
-                                    onClick={() => {
-                                      setOpenSidebarSnippetMenuId(null);
-                                      openRenameSnippetModal(snippet);
-                                    }}
-                                  >
-                                    <Pencil size={14} />
-                                    Rename
-                                  </button>
-                                  <button
-                                    className="context-menu-item"
-                                    onClick={() => {
-                                      setOpenSidebarSnippetMenuId(null);
-                                      openMoveSnippetModal(snippet);
-                                    }}
-                                  >
-                                    <FolderPlus size={14} />
-                                    Add to folder
-                                  </button>
-                                  <div className="context-divider" />
-                                  <button
-                                    className="context-menu-item danger"
-                                    onClick={() => {
-                                      setOpenSidebarSnippetMenuId(null);
-                                      openDeleteSnippetDialogFromSummary(snippet);
-                                    }}
-                                  >
-                                    <Trash2 size={14} />
-                                    Delete
-                                  </button>
-                                </div>
-                              )}
                             </div>
                           </div>
                         ))}
@@ -969,7 +1031,11 @@ export default function App() {
                       className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "recents" ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey("recents", snippet.snippetId) ? "menu-open" : ""}`}
                       onContextMenu={(event) => {
                         event.preventDefault();
-                        toggleSidebarSnippetMenu(sidebarSnippetMenuKey("recents", snippet.snippetId), event.currentTarget);
+                        toggleSidebarSnippetMenu(
+                          sidebarSnippetMenuKey("recents", snippet.snippetId),
+                          event.currentTarget,
+                          { x: event.clientX, y: event.clientY }
+                        );
                       }}
                     >
                       <button
@@ -988,65 +1054,25 @@ export default function App() {
                         >
                           <MoreHorizontal size={14} />
                         </button>
-                        {openSidebarSnippetMenuId === sidebarSnippetMenuKey("recents", snippet.snippetId) && (
-                          <div className={`context-menu snippet-context-menu ${openSidebarSnippetMenuPlacement}`}>
-                            <button
-                              className="context-menu-item"
-                              onClick={() => {
-                                setOpenSidebarSnippetMenuId(null);
-                                void handleSidebarFavoriteToggle(snippet);
-                              }}
-                            >
-                              <Star size={14} />
-                              {snippet.favorite ? "Unfavorite" : "Favorite"}
-                            </button>
-                            <button
-                              className="context-menu-item"
-                              onClick={() => {
-                                setOpenSidebarSnippetMenuId(null);
-                                openRenameSnippetModal(snippet);
-                              }}
-                            >
-                              <Pencil size={14} />
-                              Rename
-                            </button>
-                            <button
-                              className="context-menu-item"
-                              onClick={() => {
-                                setOpenSidebarSnippetMenuId(null);
-                                openMoveSnippetModal(snippet);
-                              }}
-                            >
-                              <FolderPlus size={14} />
-                              Add to folder
-                            </button>
-                            <div className="context-divider" />
-                            <button
-                              className="context-menu-item danger"
-                              onClick={() => {
-                                setOpenSidebarSnippetMenuId(null);
-                                openDeleteSnippetDialogFromSummary(snippet);
-                              }}
-                            >
-                              <Trash2 size={14} />
-                              Delete
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
                 </div>
                 )}
 
-                <div className="folder-header">
-                  <span className="eyebrow">Folders</span>
+                <div className={`folder-header recents-header ${isFoldersExpanded ? "expanded" : ""}`}>
+                  <button className="recents-toggle" onClick={() => setIsFoldersExpanded((prev) => !prev)}>
+                    <span className="eyebrow">Folders</span>
+                    <span className="recents-chevron">
+                      {isFoldersExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  </button>
                   <button className="icon-button ghost" onClick={openCreateCategoryModal} data-tooltip="New folder">
                     <FolderPlus size={14} />
                   </button>
                 </div>
 
-                {categories.map((category) => {
+                {isFoldersExpanded && categories.map((category) => {
                   const isExpanded = expandedCategories.has(category.categoryId);
                   const categorySnippets = allSnippets.filter((s) => s.category?.categoryId === category.categoryId);
 
@@ -1056,7 +1082,11 @@ export default function App() {
                         className={`folder-item ${openFolderMenuId === category.categoryId ? "menu-open" : ""}`}
                         onContextMenu={(event) => {
                           event.preventDefault();
-                          toggleFolderMenu(category.categoryId, event.currentTarget);
+                          toggleFolderMenu(
+                            category.categoryId,
+                            event.currentTarget,
+                            { x: event.clientX, y: event.clientY }
+                          );
                         }}
                       >
                         <button
@@ -1083,30 +1113,6 @@ export default function App() {
                           >
                             <MoreHorizontal size={14} />
                           </button>
-                          {openFolderMenuId === category.categoryId && (
-                            <div className={`context-menu folder-context-menu ${openFolderMenuPlacement}`}>
-                              <button
-                                className="context-menu-item"
-                                onClick={() => {
-                                  setOpenFolderMenuId(null);
-                                  openRenameCategoryModal(category);
-                                }}
-                              >
-                                <Pencil size={14} />
-                                Rename
-                              </button>
-                              <button
-                                className="context-menu-item danger"
-                                onClick={() => {
-                                  setOpenFolderMenuId(null);
-                                  openDeleteCategoryDialog(category);
-                                }}
-                              >
-                                <Trash2 size={14} />
-                                Delete
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -1118,7 +1124,11 @@ export default function App() {
                               className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === `folder-${category.categoryId}` ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId) ? "menu-open" : ""}`}
                               onContextMenu={(event) => {
                                 event.preventDefault();
-                                toggleSidebarSnippetMenu(sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId), event.currentTarget);
+                                toggleSidebarSnippetMenu(
+                                  sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId),
+                                  event.currentTarget,
+                                  { x: event.clientX, y: event.clientY }
+                                );
                               }}
                             >
                               <button
@@ -1137,51 +1147,6 @@ export default function App() {
                                 >
                                   <MoreHorizontal size={14} />
                                 </button>
-                                {openSidebarSnippetMenuId === sidebarSnippetMenuKey(`folder-${category.categoryId}`, snippet.snippetId) && (
-                                  <div className={`context-menu snippet-context-menu ${openSidebarSnippetMenuPlacement}`}>
-                                    <button
-                                      className="context-menu-item"
-                                      onClick={() => {
-                                        setOpenSidebarSnippetMenuId(null);
-                                        void handleSidebarFavoriteToggle(snippet);
-                                      }}
-                                    >
-                                      <Star size={14} />
-                                      {snippet.favorite ? "Unfavorite" : "Favorite"}
-                                    </button>
-                                    <button
-                                      className="context-menu-item"
-                                      onClick={() => {
-                                        setOpenSidebarSnippetMenuId(null);
-                                        openRenameSnippetModal(snippet);
-                                      }}
-                                    >
-                                      <Pencil size={14} />
-                                      Rename
-                                    </button>
-                                    <button
-                                      className="context-menu-item"
-                                      onClick={() => {
-                                        setOpenSidebarSnippetMenuId(null);
-                                        openMoveSnippetModal(snippet);
-                                      }}
-                                    >
-                                      <FolderPlus size={14} />
-                                      Add to folder
-                                    </button>
-                                    <div className="context-divider" />
-                                    <button
-                                      className="context-menu-item danger"
-                                      onClick={() => {
-                                        setOpenSidebarSnippetMenuId(null);
-                                        openDeleteSnippetDialogFromSummary(snippet);
-                                      }}
-                                    >
-                                      <Trash2 size={14} />
-                                      Delete
-                                    </button>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           ))}
@@ -1273,7 +1238,7 @@ export default function App() {
                       <div className="overview-row-copy">
                         <div className="overview-row-title">
                           <h3>{snippet.title}</h3>
-                          {snippet.favorite && <Star size={14} className="favorite-icon" />}
+                          {snippet.favorite && <Pin size={14} className="favorite-icon" />}
                         </div>
                         <p>{overviewMode === "trash" ? `Deleted · ${formatOverviewSecondary(snippet)}` : formatOverviewSecondary(snippet)}</p>
                       </div>
@@ -1320,8 +1285,8 @@ export default function App() {
               <div className="header-actions">
                 {snippetDetail.deletedAt == null ? (
                   <>
-                    <button className="icon-button" onClick={() => void handleFavoriteToggle()} data-tooltip="Favorite">
-                      <Star size={16} className={snippetDetail.favorite ? "favorite-icon" : ""} />
+                    <button className="icon-button" onClick={() => void handleFavoriteToggle()} data-tooltip={snippetDetail.favorite ? "Unpin" : "Pin"}>
+                      <Pin size={16} className={snippetDetail.favorite ? "favorite-icon" : ""} />
                     </button>
                     <button className="icon-button" onClick={openEditSnippet} data-tooltip="Edit snippet">
                       <Pencil size={16} />
@@ -1709,6 +1674,79 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {typeof document !== "undefined" && activeSidebarMenuTarget?.snippet && openSidebarSnippetMenuStyle && createPortal(
+        <div className="context-menu snippet-context-menu floating-context-menu" style={openSidebarSnippetMenuStyle}>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              setOpenSidebarSnippetMenuId(null);
+              void handleSidebarFavoriteToggle(activeSidebarMenuTarget.snippet!);
+            }}
+          >
+            <Pin size={14} />
+            {activeSidebarMenuTarget.snippet.favorite ? "Unpin" : "Pin"}
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              setOpenSidebarSnippetMenuId(null);
+              openRenameSnippetModal(activeSidebarMenuTarget.snippet!);
+            }}
+          >
+            <Pencil size={14} />
+            Rename
+          </button>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              setOpenSidebarSnippetMenuId(null);
+              openMoveSnippetModal(activeSidebarMenuTarget.snippet!);
+            }}
+          >
+            <FolderPlus size={14} />
+            Add to folder
+          </button>
+          <div className="context-divider" />
+          <button
+            className="context-menu-item danger"
+            onClick={() => {
+              setOpenSidebarSnippetMenuId(null);
+              openDeleteSnippetDialogFromSummary(activeSidebarMenuTarget.snippet!);
+            }}
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {typeof document !== "undefined" && activeFolderMenuCategory && openFolderMenuStyle && createPortal(
+        <div className="context-menu folder-context-menu floating-context-menu" style={openFolderMenuStyle}>
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              setOpenFolderMenuId(null);
+              openRenameCategoryModal(activeFolderMenuCategory);
+            }}
+          >
+            <Pencil size={14} />
+            Rename
+          </button>
+          <button
+            className="context-menu-item danger"
+            onClick={() => {
+              setOpenFolderMenuId(null);
+              openDeleteCategoryDialog(activeFolderMenuCategory);
+            }}
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>,
+        document.body
       )}
     </div>
   );
