@@ -12,6 +12,7 @@ import {
   ChevronRight,
   FolderOpen,
   FolderPlus,
+  Inbox,
   LogOut,
   MoreHorizontal,
   Pencil,
@@ -113,6 +114,7 @@ function parseSidebarMenuKey(menuKey: string) {
 
 export default function App() {
   const detailPaneRef = useRef<HTMLElement | null>(null);
+  const draggedSnippetRef = useRef<SnippetSummary | null>(null);
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -160,6 +162,7 @@ export default function App() {
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [isRecentsExpanded, setIsRecentsExpanded] = useState(true);
   const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
+  const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
 
   const editorExtensions = useMemo(() => getExtensions(formState.language), [formState.language]);
   const isSearchMode = keyword.trim().length > 0;
@@ -172,6 +175,10 @@ export default function App() {
     return allSnippets.filter((s) => s.favorite);
   }, [allSnippets]);
 
+  const recentSnippets = useMemo(() => {
+    return allSnippets.filter((s) => !s.favorite).slice(0, 8);
+  }, [allSnippets]);
+
   const scopedSidebarSnippets = useMemo(() => {
     if (selectedSidebarScope === "trash") {
       return trashSnippets;
@@ -179,15 +186,18 @@ export default function App() {
     if (selectedSidebarScope === "favorites") {
       return favoriteSnippets;
     }
-    if (selectedSidebarScope === "recents") {
+    if (selectedSidebarScope === "inbox") {
       return uncategorizedSnippets;
+    }
+    if (selectedSidebarScope === "recents") {
+      return recentSnippets;
     }
     if (selectedSidebarScope?.startsWith("folder-")) {
       const categoryId = Number(selectedSidebarScope.replace("folder-", ""));
       return allSnippets.filter((snippet) => snippet.category?.categoryId === categoryId);
     }
     return allSnippets;
-  }, [allSnippets, favoriteSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
+  }, [allSnippets, favoriteSnippets, recentSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
 
   const activeSidebarMenuTarget = useMemo(() => {
     if (!openSidebarSnippetMenuId) return null;
@@ -196,8 +206,11 @@ export default function App() {
     if (scope === "favorites") {
       return { scope, snippet: favoriteSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
     }
-    if (scope === "recents") {
+    if (scope === "inbox") {
       return { scope, snippet: uncategorizedSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
+    }
+    if (scope === "recents") {
+      return { scope, snippet: recentSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
     }
     if (scope.startsWith("folder-")) {
       return {
@@ -206,7 +219,7 @@ export default function App() {
       };
     }
     return { scope, snippet: allSnippets.find((snippet) => snippet.snippetId === snippetId) ?? null };
-  }, [allSnippets, favoriteSnippets, openSidebarSnippetMenuId, uncategorizedSnippets]);
+  }, [allSnippets, favoriteSnippets, openSidebarSnippetMenuId, recentSnippets, uncategorizedSnippets]);
 
   const activeFolderMenuCategory = useMemo(() => {
     if (openFolderMenuId == null) return null;
@@ -616,7 +629,7 @@ export default function App() {
     setOpenSidebarSnippetMenuId(null);
     setOpenSidebarSnippetMenuStyle(null);
     if (uncategorizedSnippets.length > 0) {
-      setSelectedSidebarScope("recents");
+      setSelectedSidebarScope("inbox");
       setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
       return;
     }
@@ -632,6 +645,13 @@ export default function App() {
     setSelectedSnippetId(snippetId);
   }
 
+  function handleSidebarItemKeyDown(event: React.KeyboardEvent<HTMLElement>, snippetId: number, scope: string) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openSnippetFromSidebar(snippetId, scope);
+    }
+  }
+
   function focusSnippet(snippet: SnippetDetail | SnippetSummary) {
     if (snippet.deletedAt != null) {
       setSelectedSidebarScope("trash");
@@ -645,14 +665,17 @@ export default function App() {
       setIsFavoritesExpanded(true);
       setSelectedSidebarScope("favorites");
     } else {
-      setIsRecentsExpanded(true);
-      setSelectedSidebarScope("recents");
+      setSelectedSidebarScope("inbox");
     }
     setSelectedSnippetId(snippet.snippetId);
   }
 
   function sidebarSnippetMenuKey(scope: string, snippetId: number) {
     return `${scope}:${snippetId}`;
+  }
+
+  function dropTargetKey(categoryId: number | null) {
+    return categoryId == null ? "inbox" : `folder-${categoryId}`;
   }
 
   const SIDEBAR_SNIPPET_MENU_HEIGHT = 146;
@@ -745,6 +768,59 @@ export default function App() {
       await updateSnippetMeta(snippet.snippetId, { favorite: !snippet.favorite });
     } catch (error) {
       setScreenError(error instanceof Error ? error.message : "즐겨찾기 변경에 실패했습니다.");
+    }
+  }
+
+  function handleSnippetDragStart(snippet: SnippetSummary, event: React.DragEvent<HTMLElement>) {
+    draggedSnippetRef.current = snippet;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(snippet.snippetId));
+  }
+
+  function handleSnippetDragEnd() {
+    draggedSnippetRef.current = null;
+    setActiveDropTarget(null);
+  }
+
+  function handleSnippetDragOver(categoryId: number | null, event: React.DragEvent<HTMLElement>) {
+    if (!draggedSnippetRef.current) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setActiveDropTarget(dropTargetKey(categoryId));
+  }
+
+  function handleSnippetDragLeave(categoryId: number | null, event: React.DragEvent<HTMLElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      const currentTarget = dropTargetKey(categoryId);
+      setActiveDropTarget((prev) => (prev === currentTarget ? null : prev));
+    }
+  }
+
+  async function handleSnippetDrop(categoryId: number | null, event: React.DragEvent<HTMLElement>) {
+    event.preventDefault();
+    const draggingSnippet = draggedSnippetRef.current;
+    if (!draggingSnippet) return;
+
+    setActiveDropTarget(null);
+
+    const currentCategoryId = draggingSnippet.category?.categoryId ?? null;
+    if (currentCategoryId === categoryId) {
+      draggedSnippetRef.current = null;
+      return;
+    }
+
+    try {
+      const moved = await updateSnippetMeta(draggingSnippet.snippetId, { categoryId });
+      focusSnippet(moved);
+      if (categoryId != null) {
+        setExpandedCategories((prev) => new Set(prev).add(categoryId));
+      } else {
+        setIsRecentsExpanded(true);
+      }
+    } catch (error) {
+      setScreenError(error instanceof Error ? error.message : "폴더 이동에 실패했습니다.");
+    } finally {
+      draggedSnippetRef.current = null;
     }
   }
 
@@ -982,12 +1058,18 @@ export default function App() {
                               );
                             }}
                           >
-                            <button
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              draggable
+                              onDragStart={(event) => handleSnippetDragStart(snippet, event)}
+                              onDragEnd={handleSnippetDragEnd}
                               className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "favorites" ? "active" : ""}`}
                               onClick={() => openSnippetFromSidebar(snippet.snippetId, "favorites")}
+                              onKeyDown={(event) => handleSidebarItemKeyDown(event, snippet.snippetId, "favorites")}
                             >
                               <span className="truncate">{snippet.title}</span>
-                            </button>
+                            </div>
                             <div className="snippet-row-actions">
                               <button
                                 className="icon-button ghost mini"
@@ -1006,7 +1088,9 @@ export default function App() {
                   </>
                 )}
 
-                <div className={`folder-header recents-header ${isRecentsExpanded ? "expanded" : ""}`}>
+                <div
+                  className={`folder-header recents-header ${isRecentsExpanded ? "expanded" : ""}`}
+                >
                   <button className="recents-toggle" onClick={() => setIsRecentsExpanded((prev) => !prev)}>
                     <span className="eyebrow">Recents</span>
                     <span className="recents-chevron">
@@ -1025,7 +1109,7 @@ export default function App() {
                 </div>
                 {isRecentsExpanded && (
                 <div className="nested-snippet-list">
-                  {uncategorizedSnippets.map((snippet) => (
+                  {recentSnippets.map((snippet) => (
                     <div
                       key={snippet.snippetId}
                       className={`nested-snippet-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "recents" ? "active" : ""} ${openSidebarSnippetMenuId === sidebarSnippetMenuKey("recents", snippet.snippetId) ? "menu-open" : ""}`}
@@ -1038,12 +1122,18 @@ export default function App() {
                         );
                       }}
                     >
-                      <button
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        draggable
+                        onDragStart={(event) => handleSnippetDragStart(snippet, event)}
+                        onDragEnd={handleSnippetDragEnd}
                         className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "recents" ? "active" : ""}`}
                         onClick={() => openSnippetFromSidebar(snippet.snippetId, "recents")}
+                        onKeyDown={(event) => handleSidebarItemKeyDown(event, snippet.snippetId, "recents")}
                       >
                         <span className="truncate">{snippet.title}</span>
-                      </button>
+                      </div>
                       <div className="snippet-row-actions">
                         <button
                           className="icon-button ghost mini"
@@ -1072,6 +1162,32 @@ export default function App() {
                   </button>
                 </div>
 
+                {isFoldersExpanded && (
+                  <div
+                    className={`folder-item no-folder-drop-target ${activeDropTarget === "inbox" ? "menu-open" : ""}`}
+                    onDragOver={(event) => handleSnippetDragOver(null, event)}
+                    onDragLeave={(event) => handleSnippetDragLeave(null, event)}
+                    onDrop={(event) => void handleSnippetDrop(null, event)}
+                  >
+                    <button
+                      className={`folder-row llm-card ${selectedSidebarScope === "inbox" ? "expanded" : ""} ${activeDropTarget === "inbox" ? "drop-target-active" : ""}`}
+                      onClick={() => {
+                        setOverviewMode(null);
+                        setSelectedSidebarScope("inbox");
+                        if (uncategorizedSnippets.length > 0) {
+                          setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
+                        }
+                      }}
+                    >
+                      <div className="folder-row-main">
+                        <Inbox size={14} className="folder-icon no-folder-icon" />
+                        <span className="card-title">Inbox</span>
+                      </div>
+                      <span className="card-meta">{uncategorizedSnippets.length}</span>
+                    </button>
+                  </div>
+                )}
+
                 {isFoldersExpanded && categories.map((category) => {
                   const isExpanded = expandedCategories.has(category.categoryId);
                   const categorySnippets = allSnippets.filter((s) => s.category?.categoryId === category.categoryId);
@@ -1080,6 +1196,9 @@ export default function App() {
                     <div key={category.categoryId} className="folder-group">
                       <div
                         className={`folder-item ${openFolderMenuId === category.categoryId ? "menu-open" : ""}`}
+                        onDragOver={(event) => handleSnippetDragOver(category.categoryId, event)}
+                        onDragLeave={(event) => handleSnippetDragLeave(category.categoryId, event)}
+                        onDrop={(event) => void handleSnippetDrop(category.categoryId, event)}
                         onContextMenu={(event) => {
                           event.preventDefault();
                           toggleFolderMenu(
@@ -1090,7 +1209,7 @@ export default function App() {
                         }}
                       >
                         <button
-                          className={`folder-row llm-card ${isExpanded ? "expanded" : ""}`}
+                          className={`folder-row llm-card ${isExpanded ? "expanded" : ""} ${activeDropTarget === `folder-${category.categoryId}` ? "drop-target-active" : ""}`}
                           onClick={() => {
                             setOverviewMode(null);
                             toggleCategory(category.categoryId);
@@ -1131,12 +1250,18 @@ export default function App() {
                                 );
                               }}
                             >
-                              <button
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                draggable
+                                onDragStart={(event) => handleSnippetDragStart(snippet, event)}
+                                onDragEnd={handleSnippetDragEnd}
                                 className={`nested-snippet-item ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === `folder-${category.categoryId}` ? "active" : ""}`}
                                 onClick={() => openSnippetFromSidebar(snippet.snippetId, `folder-${category.categoryId}`)}
+                                onKeyDown={(event) => handleSidebarItemKeyDown(event, snippet.snippetId, `folder-${category.categoryId}`)}
                               >
                                 <span className="truncate">{snippet.title}</span>
-                              </button>
+                              </div>
                               <div className="snippet-row-actions">
                                 <button
                                   className="icon-button ghost mini"
@@ -1156,6 +1281,7 @@ export default function App() {
                     </div>
                   );
                 })}
+
               </>
             )}
           </div>

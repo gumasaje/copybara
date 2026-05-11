@@ -558,6 +558,15 @@ button {
   margin: 1px 10px;
   border-radius: 6px;
   z-index: 0;
+  cursor: grab;
+}
+
+.nested-snippet-row:active {
+  cursor: grabbing;
+}
+
+.nested-snippet-row[draggable="true"] .nested-snippet-item {
+  cursor: inherit;
 }
 
 .nested-snippet-item {
@@ -765,9 +774,19 @@ button {
   flex-shrink: 0;
 }
 
+.no-folder-icon {
+  color: #8b95f5;
+}
+
 .folder-row:hover {
   background: #111318;
   color: #f7f8f8;
+}
+
+.folder-row.drop-target-active,
+.folder-header.drop-target-active {
+  background: rgba(94, 106, 210, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(94, 106, 210, 0.4);
 }
 
 .folder-row.expanded {
@@ -896,6 +915,18 @@ button {
 .folder-item.menu-open,
 .nested-snippet-row.menu-open {
   z-index: 40;
+}
+
+.no-folder-drop-target {
+  margin-bottom: 4px;
+}
+
+.no-folder-drop-target .folder-row {
+  background: rgba(26, 29, 36, 0.62);
+}
+
+.no-folder-drop-target .folder-row:hover {
+  background: rgba(30, 34, 43, 0.88);
 }
 
 .folder-item:hover .folder-row .card-meta,
