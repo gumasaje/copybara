@@ -8,7 +8,8 @@ import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { SnippetModal } from "./components/modals/SnippetModal";
 import { FolderMenu } from "./components/menus/FolderMenu";
 import { SidebarSnippetMenu } from "./components/menus/SidebarSnippetMenu";
-import type { Category, SnippetAnalysis, SnippetDetail, SnippetFormState, SnippetSummary, User } from "./types";
+import type { Category, SnippetDetail, SnippetFormState, SnippetSummary, User } from "./types";
+import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import { parseSidebarMenuKey, parseTags } from "./utils/helpers";
 
 const ComposerModal = lazy(() => import("./components/modals/ComposerModal").then((module) => ({ default: module.ComposerModal })));
@@ -30,23 +31,13 @@ export default function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [allSnippets, setAllSnippets] = useState<SnippetSummary[]>([]);
-  const [trashSnippets, setTrashSnippets] = useState<SnippetSummary[]>([]);
   const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(null);
   const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
-  const [snippetDetail, setSnippetDetail] = useState<SnippetDetail | null>(null);
-  const [snippetAnalysis, setSnippetAnalysis] = useState<SnippetAnalysis | null>(null);
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [screenError, setScreenError] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<SnippetDetail | null>(null);
   const [formState, setFormState] = useState<SnippetFormState>(DEFAULT_FORM);
-  const [notesDraft, setNotesDraft] = useState("");
-  const [notesStatus, setNotesStatus] = useState<string | null>(null);
-  const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState<"create" | "rename">("create");
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -74,6 +65,33 @@ export default function App() {
   const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
+
+  const {
+    categories,
+    setCategories,
+    allSnippets,
+    trashSnippets,
+    snippetDetail,
+    setSnippetDetail,
+    snippetAnalysis,
+    notesDraft,
+    setNotesDraft,
+    notesStatus,
+    isSavingNotes,
+    copyStatus,
+    screenError,
+    setScreenError,
+    refreshWorkspace,
+    refreshSnippet,
+    handleSaveNotes,
+    handleAnalyze,
+    handleCopySnippet
+  } = useWorkspaceData({
+    user,
+    keyword,
+    selectedSnippetId,
+    selectedSidebarScope
+  });
 
   const isSearchMode = keyword.trim().length > 0;
 
@@ -172,11 +190,6 @@ export default function App() {
   }, [authMode]);
 
   useEffect(() => {
-    if (!user) return;
-    void refreshWorkspace();
-  }, [user, keyword]);
-
-  useEffect(() => {
     setOpenSidebarSnippetMenuId(null);
   }, [selectedSnippetId, keyword]);
 
@@ -247,58 +260,8 @@ export default function App() {
   }, [scopedSidebarSnippets, selectedSnippetId]);
 
   useEffect(() => {
-    if (!selectedSnippetId) {
-      setSnippetDetail(null);
-      setSnippetAnalysis(null);
-      setNotesDraft("");
-      setNotesStatus(null);
-      return;
-    }
-    void refreshSnippet(selectedSnippetId);
-  }, [selectedSnippetId, selectedSidebarScope]);
-
-  useEffect(() => {
     detailPaneRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [selectedSnippetId, selectedSidebarScope, overviewMode]);
-
-  async function refreshWorkspace() {
-    try {
-      setScreenError(null);
-      const [categoryList, snippetList, trashList] = await Promise.all([
-        api.getCategories(),
-        api.getSnippets({ keyword }),
-        api.getTrashSnippets()
-      ]);
-      setCategories(categoryList);
-      setAllSnippets(snippetList);
-      setTrashSnippets(trashList);
-    } catch (error) {
-      setScreenError(error instanceof Error ? error.message : "화면을 불러오지 못했습니다.");
-    }
-  }
-
-  async function refreshSnippet(snippetId: number) {
-    try {
-      const isTrashScope = selectedSidebarScope === "trash";
-      const detail = isTrashScope
-        ? await api.getTrashSnippet(snippetId)
-        : await api.getSnippet(snippetId);
-      setSnippetDetail(detail);
-      setNotesDraft(detail.notes ?? "");
-      if (isTrashScope) {
-        setSnippetAnalysis(null);
-        return;
-      }
-      try {
-        const analysis = await api.getAnalysis(snippetId);
-        setSnippetAnalysis(analysis);
-      } catch {
-        setSnippetAnalysis(null);
-      }
-    } catch (error) {
-      setScreenError(error instanceof Error ? error.message : "상세 정보를 불러오지 못했습니다.");
-    }
-  }
 
   async function handleAuthSubmit(formData: FormData) {
     const email = String(formData.get("email") ?? "");
@@ -481,50 +444,12 @@ export default function App() {
     }
   }
 
-  async function handleSaveNotes() {
-    if (!snippetDetail) return;
-    try {
-      setScreenError(null);
-      setNotesStatus(null);
-      setIsSavingNotes(true);
-      const response = await api.updateNotes(snippetDetail.snippetId, notesDraft);
-      setSnippetDetail((prev) => (prev ? { ...prev, notes: response.notes, updatedAt: response.updatedAt } : prev));
-      setNotesDraft(response.notes ?? "");
-      setNotesStatus(response.notes == null ? "Notes cleared" : "Notes saved");
-    } catch (error) {
-      setScreenError(error instanceof Error ? error.message : "노트 저장에 실패했습니다.");
-    } finally {
-      setIsSavingNotes(false);
-    }
-  }
-
-  async function handleAnalyze() {
-    if (!snippetDetail) return;
-    try {
-      const analysis = await api.createAnalysis(snippetDetail.snippetId);
-      setSnippetAnalysis(analysis);
-    } catch (error) {
-      setScreenError(error instanceof Error ? error.message : "AI 분석 요청에 실패했습니다.");
-    }
-  }
-
   function handleLogout() {
     setStoredToken(null);
     setToken(null);
     setUser(null);
     setSelectedSnippetId(null);
     setSnippetDetail(null);
-  }
-
-  async function handleCopySnippet() {
-    if (!snippetDetail) return;
-    try {
-      await navigator.clipboard.writeText(snippetDetail.content);
-      setCopyStatus("copied");
-      window.setTimeout(() => setCopyStatus("idle"), 1400);
-    } catch (error) {
-      setScreenError(error instanceof Error ? error.message : "복사에 실패했습니다.");
-    }
   }
 
   function goHome() {
