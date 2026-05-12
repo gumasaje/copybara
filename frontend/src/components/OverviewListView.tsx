@@ -49,10 +49,18 @@ export function OverviewListView({
           </div>
         ) : (
           snippets.map((snippet) => (
-            <button
+            <div
               key={snippet.snippetId}
+              role="button"
+              tabIndex={0}
               className="overview-row"
               onClick={() => onSelectSnippet(snippet.snippetId, mode === "trash" ? "trash" : null)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectSnippet(snippet.snippetId, mode === "trash" ? "trash" : null);
+                }
+              }}
             >
               <div className="overview-row-main">
                 <div className="overview-row-copy">
@@ -68,6 +76,7 @@ export function OverviewListView({
                   <div className="overview-row-actions">
                     <button
                       className="icon-button ghost mini"
+                      aria-label="Restore snippet"
                       onClick={(event) => {
                         event.stopPropagation();
                         void onRestoreSnippet(snippet.snippetId);
@@ -78,6 +87,7 @@ export function OverviewListView({
                     </button>
                     <button
                       className="icon-button ghost mini danger-icon"
+                      aria-label="Delete snippet permanently"
                       onClick={(event) => {
                         event.stopPropagation();
                         onDeleteSnippet(snippet);
@@ -91,7 +101,7 @@ export function OverviewListView({
                   <span>{formatOverviewTimestamp(snippet.updatedAt)}</span>
                 )}
               </div>
-            </button>
+            </div>
           ))
         )}
       </div>
