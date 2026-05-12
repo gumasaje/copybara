@@ -1,17 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import {
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Search
-} from "lucide-react";
 import { api, getStoredToken, setStoredToken } from "./api";
 import { AuthPage } from "./components/AuthPage";
-import { FoldersSection } from "./components/sidebar/FoldersSection";
-import { PinnedSection } from "./components/sidebar/PinnedSection";
-import { RecentsSection } from "./components/sidebar/RecentsSection";
-import { SearchResultsSection } from "./components/sidebar/SearchResultsSection";
-import { SidebarFooter } from "./components/sidebar/SidebarFooter";
+import { SidebarPane } from "./components/app/SidebarPane";
+import { WorkspacePane } from "./components/app/WorkspacePane";
 import { CategoryModal } from "./components/modals/CategoryModal";
 import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { SnippetModal } from "./components/modals/SnippetModal";
@@ -21,9 +12,6 @@ import type { Category, SnippetAnalysis, SnippetDetail, SnippetFormState, Snippe
 import { parseSidebarMenuKey, parseTags } from "./utils/helpers";
 
 const ComposerModal = lazy(() => import("./components/modals/ComposerModal").then((module) => ({ default: module.ComposerModal })));
-const OverviewListView = lazy(() => import("./components/OverviewListView").then((module) => ({ default: module.OverviewListView })));
-const SnippetDetailView = lazy(() => import("./components/SnippetDetailView").then((module) => ({ default: module.SnippetDetailView })));
-
 const DEFAULT_FORM: SnippetFormState = {
   title: "",
   content: "",
@@ -912,206 +900,108 @@ export default function App() {
 
   return (
     <div className={`app-shell ${!isSidebarOpen ? "sidebar-collapsed" : ""}`}>
-      <aside className="nav-pane">
-        <div className="sidebar-top-wrapper">
-          <div className="pane-header nav-header">
-            <div className="header-logo-group">
-              <button className="brand-button" onClick={goHome} data-tooltip="Home">
-                <h2>Copybara</h2>
-              </button>
-              <button className="icon-button ghost" onClick={() => setIsSidebarOpen(false)} data-tooltip="Hide sidebar · Ctrl/Cmd+B">
-                <PanelLeftClose size={18} />
-              </button>
-            </div>
-          </div>
+      <SidebarPane
+        user={user}
+        categories={categories}
+        allSnippets={allSnippets}
+        trashSnippets={trashSnippets}
+        favoriteSnippets={favoriteSnippets}
+        recentSnippets={recentSnippets}
+        uncategorizedSnippets={uncategorizedSnippets}
+        selectedSnippetId={selectedSnippetId}
+        selectedSidebarScope={selectedSidebarScope}
+        openFolderMenuId={openFolderMenuId}
+        openSidebarSnippetMenuId={openSidebarSnippetMenuId}
+        activeDropTarget={activeDropTarget}
+        draggedCategoryId={draggedCategoryId}
+        isSearchMode={isSearchMode}
+        isFavoritesExpanded={isFavoritesExpanded}
+        isRecentsExpanded={isRecentsExpanded}
+        isFoldersExpanded={isFoldersExpanded}
+        searchInput={searchInput}
+        overviewMode={overviewMode}
+        expandedCategories={expandedCategories}
+        sidebarSnippetMenuKey={sidebarSnippetMenuKey}
+        onGoHome={goHome}
+        onCloseSidebar={() => setIsSidebarOpen(false)}
+        onSearchInputChange={setSearchInput}
+        onSearchSubmit={() => setKeyword(searchInput)}
+        onOpenCreateSnippet={openCreateSnippet}
+        onToggleFavoritesExpanded={() => setIsFavoritesExpanded((prev) => !prev)}
+        onToggleRecentsExpanded={() => setIsRecentsExpanded((prev) => !prev)}
+        onToggleFoldersExpanded={() => setIsFoldersExpanded((prev) => !prev)}
+        onViewAll={() => {
+          setOverviewMode("all");
+          setIsRecentsExpanded(true);
+        }}
+        onOpenSnippet={openSnippetFromSidebar}
+        onSidebarItemKeyDown={handleSidebarItemKeyDown}
+        onSnippetDragStart={handleSnippetDragStart}
+        onSnippetDragEnd={handleSnippetDragEnd}
+        onToggleSnippetMenu={toggleSidebarSnippetMenu}
+        onOpenCreateCategoryModal={openCreateCategoryModal}
+        onSelectInbox={() => {
+          setOverviewMode(null);
+          setSelectedSidebarScope("inbox");
+          if (uncategorizedSnippets.length > 0) {
+            setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
+          }
+        }}
+        onToggleCategory={(categoryId) => {
+          setOverviewMode(null);
+          toggleCategory(categoryId);
+        }}
+        onSnippetDragOver={handleSnippetDragOver}
+        onSnippetDragLeave={handleSnippetDragLeave}
+        onSnippetDrop={handleSnippetDrop}
+        onCategoryDragStart={handleCategoryDragStart}
+        onCategoryDragEnd={handleCategoryDragEnd}
+        onFolderItemDragOver={handleFolderItemDragOver}
+        onFolderItemDragLeave={handleFolderItemDragLeave}
+        onFolderItemDrop={handleFolderItemDrop}
+        onCategoryReorderDragOver={handleCategoryReorderDragOver}
+        onCategoryReorderDragLeave={handleCategoryReorderDragLeave}
+        onCategoryReorderDrop={handleCategoryReorderDrop}
+        onToggleFolderMenu={toggleFolderMenu}
+        onOpenTrash={() => setOverviewMode("trash")}
+        onLogout={handleLogout}
+        sidebarScrollRef={(node) => {
+          sidebarScrollRef.current = node;
+        }}
+      />
 
-          <div className="sidebar-actions-group">
-            <div className="search-box">
-              <Search size={14} />
-              <input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    setKeyword(searchInput);
-                  }
-                }}
-                placeholder="Search"
-              />
-            </div>
-            <button className="primary-button new-snippet-pill" onClick={openCreateSnippet}>
-              <Plus size={16} />
-              <span>New Snippet</span>
-            </button>
-          </div>
-        </div>
-
-        <div
-          className="sidebar-scroll-area"
-          ref={(node) => {
-            sidebarScrollRef.current = node;
-          }}
-        >
-          <div className="folder-list">
-            {isSearchMode ? (
-              <SearchResultsSection
-                snippets={allSnippets}
-                selectedSnippetId={selectedSnippetId}
-                selectedSidebarScope={selectedSidebarScope}
-                onOpenSnippet={openSnippetFromSidebar}
-              />
-            ) : (
-              <>
-                <PinnedSection
-                  snippets={favoriteSnippets}
-                  isExpanded={isFavoritesExpanded}
-                  selectedSnippetId={selectedSnippetId}
-                  selectedSidebarScope={selectedSidebarScope}
-                  openSidebarSnippetMenuId={openSidebarSnippetMenuId}
-                  sidebarSnippetMenuKey={sidebarSnippetMenuKey}
-                  onToggleExpanded={() => setIsFavoritesExpanded((prev) => !prev)}
-                  onOpenSnippet={openSnippetFromSidebar}
-                  onSidebarItemKeyDown={handleSidebarItemKeyDown}
-                  onSnippetDragStart={handleSnippetDragStart}
-                  onSnippetDragEnd={handleSnippetDragEnd}
-                  onToggleSnippetMenu={toggleSidebarSnippetMenu}
-                />
-
-                <RecentsSection
-                  snippets={recentSnippets}
-                  isExpanded={isRecentsExpanded}
-                  selectedSnippetId={selectedSnippetId}
-                  selectedSidebarScope={selectedSidebarScope}
-                  openSidebarSnippetMenuId={openSidebarSnippetMenuId}
-                  sidebarSnippetMenuKey={sidebarSnippetMenuKey}
-                  onToggleExpanded={() => setIsRecentsExpanded((prev) => !prev)}
-                  onViewAll={() => {
-                    setOverviewMode("all");
-                    setIsRecentsExpanded(true);
-                  }}
-                  onOpenSnippet={openSnippetFromSidebar}
-                  onSidebarItemKeyDown={handleSidebarItemKeyDown}
-                  onSnippetDragStart={handleSnippetDragStart}
-                  onSnippetDragEnd={handleSnippetDragEnd}
-                  onToggleSnippetMenu={toggleSidebarSnippetMenu}
-                />
-
-                <FoldersSection
-                  isExpanded={isFoldersExpanded}
-                  categories={categories}
-                  expandedCategories={expandedCategories}
-                  uncategorizedSnippets={uncategorizedSnippets}
-                  allSnippets={allSnippets}
-                  selectedSnippetId={selectedSnippetId}
-                  selectedSidebarScope={selectedSidebarScope}
-                  openFolderMenuId={openFolderMenuId}
-                  openSidebarSnippetMenuId={openSidebarSnippetMenuId}
-                  activeDropTarget={activeDropTarget}
-                  sidebarSnippetMenuKey={sidebarSnippetMenuKey}
-                  onToggleExpanded={() => setIsFoldersExpanded((prev) => !prev)}
-                  onOpenCreateCategoryModal={openCreateCategoryModal}
-                  onSelectInbox={() => {
-                    setOverviewMode(null);
-                    setSelectedSidebarScope("inbox");
-                    if (uncategorizedSnippets.length > 0) {
-                      setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
-                    }
-                  }}
-                  onToggleCategory={(categoryId) => {
-                    setOverviewMode(null);
-                    toggleCategory(categoryId);
-                  }}
-                  onOpenSnippet={openSnippetFromSidebar}
-                  onSidebarItemKeyDown={handleSidebarItemKeyDown}
-                  onSnippetDragStart={handleSnippetDragStart}
-                  onSnippetDragEnd={handleSnippetDragEnd}
-                  onSnippetDragOver={handleSnippetDragOver}
-                  onSnippetDragLeave={handleSnippetDragLeave}
-                  onSnippetDrop={handleSnippetDrop}
-                  onCategoryDragStart={handleCategoryDragStart}
-                  onCategoryDragEnd={handleCategoryDragEnd}
-                  draggedCategoryId={draggedCategoryId}
-                  onFolderItemDragOver={handleFolderItemDragOver}
-                  onFolderItemDragLeave={handleFolderItemDragLeave}
-                  onFolderItemDrop={handleFolderItemDrop}
-                  onCategoryReorderDragOver={handleCategoryReorderDragOver}
-                  onCategoryReorderDragLeave={handleCategoryReorderDragLeave}
-                  onCategoryReorderDrop={handleCategoryReorderDrop}
-                  onToggleSnippetMenu={toggleSidebarSnippetMenu}
-                  onToggleFolderMenu={toggleFolderMenu}
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        <SidebarFooter
-          user={user}
-          overviewMode={overviewMode}
-          trashCount={trashSnippets.length}
-          onOpenTrash={() => setOverviewMode("trash")}
-          onLogout={handleLogout}
-        />
-      </aside>
-
-      <main
-        className="detail-pane workspace-pane"
-        ref={(node) => {
+      <WorkspacePane
+        isSidebarOpen={isSidebarOpen}
+        screenError={screenError}
+        overviewMode={overviewMode}
+        allSnippets={allSnippets}
+        trashSnippets={trashSnippets}
+        snippetDetail={snippetDetail}
+        snippetAnalysis={snippetAnalysis}
+        copyStatus={copyStatus}
+        notesDraft={notesDraft}
+        notesStatus={notesStatus}
+        isSavingNotes={isSavingNotes}
+        onOpenSidebar={() => setIsSidebarOpen(true)}
+        onOpenCreateSnippet={openCreateSnippet}
+        onSelectSnippet={(snippetId, scope) => {
+          setOverviewMode(null);
+          setSelectedSidebarScope(scope);
+          setSelectedSnippetId(snippetId);
+        }}
+        onRestoreSnippet={handleRestoreSnippet}
+        onDeleteSnippetFromSummary={openDeleteSnippetDialogFromSummary}
+        onToggleFavorite={handleFavoriteToggle}
+        onEditSnippet={openEditSnippet}
+        onDeleteSnippet={openDeleteSnippetDialog}
+        onCopySnippet={handleCopySnippet}
+        onAnalyze={handleAnalyze}
+        onNotesDraftChange={setNotesDraft}
+        onSaveNotes={handleSaveNotes}
+        detailPaneRef={(node) => {
           detailPaneRef.current = node;
         }}
-      >
-        {!isSidebarOpen && (
-          <div className="floating-toggle">
-            <button className="icon-button" onClick={() => setIsSidebarOpen(true)} data-tooltip="Show sidebar · Ctrl/Cmd+B">
-              <PanelLeftOpen size={16} />
-            </button>
-            <button className="icon-button" onClick={openCreateSnippet} data-tooltip="New snippet">
-              <Plus size={16} />
-            </button>
-          </div>
-        )}
-        {screenError && <div className="banner error">{screenError}</div>}
-        {overviewMode ? (
-          <Suspense fallback={<div className="empty-state"><h1>Loading view...</h1></div>}>
-            <OverviewListView
-              mode={overviewMode}
-              allSnippets={allSnippets}
-              trashSnippets={trashSnippets}
-              onSelectSnippet={(snippetId, scope) => {
-                setOverviewMode(null);
-                setSelectedSidebarScope(scope);
-                setSelectedSnippetId(snippetId);
-              }}
-              onRestoreSnippet={handleRestoreSnippet}
-              onDeleteSnippet={openDeleteSnippetDialogFromSummary}
-            />
-          </Suspense>
-        ) : snippetDetail ? (
-          <Suspense fallback={<div className="empty-state"><h1>Loading snippet...</h1></div>}>
-            <SnippetDetailView
-              snippetDetail={snippetDetail}
-              snippetAnalysis={snippetAnalysis}
-              copyStatus={copyStatus}
-              notesDraft={notesDraft}
-              notesStatus={notesStatus}
-              isSavingNotes={isSavingNotes}
-              onToggleFavorite={handleFavoriteToggle}
-              onEditSnippet={openEditSnippet}
-              onDeleteSnippet={openDeleteSnippetDialog}
-              onRestoreSnippet={handleRestoreSnippet}
-              onCopySnippet={handleCopySnippet}
-              onAnalyze={handleAnalyze}
-              onNotesDraftChange={setNotesDraft}
-              onSaveNotes={handleSaveNotes}
-            />
-          </Suspense>
-        ) : (
-          <div className="empty-state">
-            <h1>No snippet selected.</h1>
-            <p>Choose a folder and a snippet, or create a new one to shape the workspace.</p>
-          </div>
-        )}
-      </main>
+      />
 
       {showComposer && (
         <Suspense fallback={null}>
