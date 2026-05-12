@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
+import type { Extension } from "@codemirror/state";
 import { X } from "lucide-react";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
 import type { SnippetFormState } from "../../types";
-import { LANGUAGE_OPTIONS, getExtensions } from "../../utils/editor";
+import { LANGUAGE_OPTIONS, loadExtensions } from "../../utils/editor";
 
 type ComposerModalProps = {
   editing: boolean;
@@ -25,7 +27,21 @@ export function ComposerModal({
   onSubmit,
   onClose
 }: ComposerModalProps) {
-  const editorExtensions = getExtensions(formState.language);
+  const [editorExtensions, setEditorExtensions] = useState<Extension[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    void loadExtensions(formState.language).then((extensions) => {
+      if (active) {
+        setEditorExtensions(extensions);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [formState.language]);
 
   return (
     <div className="modal-backdrop">

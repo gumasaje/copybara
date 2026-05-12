@@ -1,21 +1,19 @@
-import { java } from "@codemirror/lang-java";
-import { javascript } from "@codemirror/lang-javascript";
-import { python } from "@codemirror/lang-python";
-import { sql } from "@codemirror/lang-sql";
+import type { Extension } from "@codemirror/state";
 
 export const LANGUAGE_OPTIONS = ["Java", "JavaScript", "TypeScript", "Python", "SQL", "Text"];
 
-export function getExtensions(language: string) {
+export async function loadExtensions(language: string): Promise<Extension[]> {
   switch (language.toLowerCase()) {
     case "java":
-      return [java()];
+      return import("@codemirror/lang-java").then(({ java }) => [java()]);
     case "javascript":
+      return import("@codemirror/lang-javascript").then(({ javascript }) => [javascript()]);
     case "typescript":
-      return [javascript({ typescript: language.toLowerCase() === "typescript" })];
+      return import("@codemirror/lang-javascript").then(({ javascript }) => [javascript({ typescript: true })]);
     case "python":
-      return [python()];
+      return import("@codemirror/lang-python").then(({ python }) => [python()]);
     case "sql":
-      return [sql()];
+      return import("@codemirror/lang-sql").then(({ sql }) => [sql()]);
     default:
       return [];
   }

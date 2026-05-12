@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
+import type { Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
 import { Copy, FolderOpen, Pencil, Pin, Sparkles, Trash2 } from "lucide-react";
 import type { SnippetAnalysis, SnippetDetail } from "../types";
-import { getExtensions } from "../utils/editor";
+import { loadExtensions } from "../utils/editor";
 
 type SnippetDetailViewProps = {
   snippetDetail: SnippetDetail;
@@ -37,6 +39,22 @@ export function SnippetDetailView({
   onNotesDraftChange,
   onSaveNotes
 }: SnippetDetailViewProps) {
+  const [editorExtensions, setEditorExtensions] = useState<Extension[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    void loadExtensions(snippetDetail.language ?? "text").then((extensions) => {
+      if (active) {
+        setEditorExtensions(extensions);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [snippetDetail.language]);
+
   return (
     <>
       <div className="pane-header detail-pane-header">
@@ -102,7 +120,7 @@ export function SnippetDetailView({
       <div className="code-panel workspace-editor">
         <CodeMirror
           value={snippetDetail.content}
-          extensions={getExtensions(snippetDetail.language ?? "text")}
+          extensions={editorExtensions}
           theme={oneDark}
           editable={false}
           basicSetup={{ lineNumbers: true, highlightActiveLine: false }}
