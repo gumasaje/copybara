@@ -28,7 +28,6 @@ public class HeuristicSnippetAnalysisGenerator implements SnippetAnalysisGenerat
         List<String> keyPoints = new ArrayList<>();
         keyPoints.add("언어: %s".formatted(nullToUnknown(snippet.getLanguage())));
         keyPoints.add("태그 수: %d".formatted(snippet.getTags().size()));
-        keyPoints.add("첨부파일 수: %d".formatted(snippet.getAttachments().size()));
         return keyPoints;
     }
 

@@ -1,10 +1,7 @@
 package com.gumasaje.copybara.snippet.controller;
 
 import com.gumasaje.copybara.analysis.dto.SnippetAnalysisResponse;
-import com.gumasaje.copybara.attachment.dto.AttachmentDownload;
 import com.gumasaje.copybara.analysis.service.SnippetAnalysisService;
-import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
-import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.auth.service.AuthMember;
 import com.gumasaje.copybara.snippet.dto.SnippetCategoryMoveRequest;
 import com.gumasaje.copybara.snippet.dto.SnippetCreateRequest;
@@ -16,12 +13,7 @@ import com.gumasaje.copybara.snippet.dto.SnippetSummaryResponse;
 import com.gumasaje.copybara.snippet.service.SnippetService;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.core.io.Resource;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,26 +24,21 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/snippets")
 public class SnippetController {
 
     private final SnippetService snippetService;
-    private final AttachmentService attachmentService;
     private final SnippetAnalysisService snippetAnalysisService;
 
     public SnippetController(
             SnippetService snippetService,
-            AttachmentService attachmentService,
             SnippetAnalysisService snippetAnalysisService
     ) {
         this.snippetService = snippetService;
-        this.attachmentService = attachmentService;
         this.snippetAnalysisService = snippetAnalysisService;
     }
 
@@ -140,44 +127,6 @@ public class SnippetController {
             @Valid @RequestBody SnippetFavoriteRequest request
     ) {
         return snippetService.updateFavorite(authMember.memberId(), snippetId, request);
-    }
-
-    @PostMapping("/{snippetId}/attachments")
-    @ResponseStatus(HttpStatus.CREATED)
-    public AttachmentResponse uploadAttachment(
-            @AuthenticationPrincipal AuthMember authMember,
-            @PathVariable Long snippetId,
-            @RequestPart("file") MultipartFile file
-    ) {
-        return attachmentService.upload(authMember.memberId(), snippetId, file);
-    }
-
-    @DeleteMapping("/{snippetId}/attachments/{attachmentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteAttachment(
-            @AuthenticationPrincipal AuthMember authMember,
-            @PathVariable Long snippetId,
-            @PathVariable Long attachmentId
-    ) {
-        attachmentService.delete(authMember.memberId(), snippetId, attachmentId);
-    }
-
-    @GetMapping("/{snippetId}/attachments/{attachmentId}/download")
-    public ResponseEntity<Resource> downloadAttachment(
-            @AuthenticationPrincipal AuthMember authMember,
-            @PathVariable Long snippetId,
-            @PathVariable Long attachmentId
-    ) {
-        AttachmentDownload download = attachmentService.download(authMember.memberId(), snippetId, attachmentId);
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(download.contentType()))
-                .contentLength(download.fileSize())
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(download.originalName())
-                        .build()
-                        .toString())
-                .body(download.resource());
     }
 
     @PutMapping("/{snippetId}/notes")

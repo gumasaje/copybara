@@ -1,7 +1,6 @@
 package com.gumasaje.copybara.snippet.domain;
 
 import com.gumasaje.copybara.analysis.domain.SnippetAnalysis;
-import com.gumasaje.copybara.attachment.domain.Attachment;
 import com.gumasaje.copybara.category.domain.Category;
 import com.gumasaje.copybara.member.domain.Member;
 import com.gumasaje.copybara.tag.domain.Tag;
@@ -16,14 +15,12 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -66,9 +63,6 @@ public class Snippet {
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
     private Set<Tag> tags = new LinkedHashSet<>();
-
-    @OneToMany(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private List<Attachment> attachments = new ArrayList<>();
 
     @OneToOne(mappedBy = "snippet", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private SnippetAnalysis analysis;
@@ -160,7 +154,6 @@ public class Snippet {
     public Category getCategory() { return category; }
     public boolean isFavorite() { return favorite; }
     public Set<Tag> getTags() { return tags; }
-    public List<Attachment> getAttachments() { return attachments; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public LocalDateTime getDeletedAt() { return deletedAt; }

@@ -1128,7 +1128,6 @@ button {
 .composer-header,
 .composer-actions,
 .editor-toolbar,
-.attachment-row,
 .memo-item,
 .snippet-card-header {
   display: flex;
@@ -1158,8 +1157,7 @@ button {
 .nav-section,
 .folder-list,
 .snippet-list,
-.memo-list,
-.attachment-list {
+.memo-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1886,12 +1884,6 @@ button {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid #23252a;
-}
-
-.resource-subsection-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .memo-item {

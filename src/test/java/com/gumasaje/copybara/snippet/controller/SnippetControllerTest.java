@@ -1,16 +1,13 @@
 package com.gumasaje.copybara.snippet.controller;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,7 +18,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -61,8 +57,7 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.category").value(nullValue()))
                 .andExpect(jsonPath("$.favorite").value(false))
                 .andExpect(jsonPath("$.tags[0]").value("Spring"))
-                .andExpect(jsonPath("$.tags[1]").value("Security"))
-                .andExpect(jsonPath("$.attachments").isArray());
+                .andExpect(jsonPath("$.tags[1]").value("Security"));
     }
 
     @Test
@@ -129,92 +124,6 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNIPPET_ANALYSIS_NOT_FOUND"));
-    }
-
-    @Test
-    void uploadAttachmentStoresMetadataAndAppearsInSnippetDetail() throws Exception {
-        String accessToken = signupAndLogin("snippet-attachment@example.com", "snippet-attachment-user");
-        Long snippetId = createSnippet(accessToken, "Attachment snippet", "attachment-content");
-
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "example.txt",
-                "text/plain",
-                "hello copybara".getBytes()
-        );
-
-        mockMvc.perform(multipart("/api/snippets/{snippetId}/attachments", snippetId)
-                        .file(file)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.attachmentId").isNumber())
-                .andExpect(jsonPath("$.originalName").value("example.txt"))
-                .andExpect(jsonPath("$.contentType").value("text/plain"))
-                .andExpect(jsonPath("$.fileSize").value(14));
-
-        mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.attachments[0].originalName").value("example.txt"))
-                .andExpect(jsonPath("$.attachments[0].contentType").value("text/plain"));
-    }
-
-    @Test
-    void deleteAttachmentReturnsNoContentWhenAttachmentBelongsToOwnedSnippet() throws Exception {
-        String accessToken = signupAndLogin("snippet-attachment-delete@example.com", "snippet-attachment-delete-user");
-        Long snippetId = createSnippet(accessToken, "Attachment delete snippet", "attachment delete target");
-        Long attachmentId = uploadAttachment(accessToken, snippetId, "delete-example.txt", "delete copybara");
-
-        mockMvc.perform(delete("/api/snippets/{snippetId}/attachments/{attachmentId}", snippetId, attachmentId)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/snippets/{snippetId}", snippetId)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.attachments").isEmpty());
-    }
-
-    @Test
-    void deleteAttachmentReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
-        String ownerToken = signupAndLogin("snippet-attachment-delete-owner@example.com", "snippet-attachment-delete-owner");
-        Long snippetId = createSnippet(ownerToken, "Attachment delete owner snippet", "attachment delete owner target");
-        Long attachmentId = uploadAttachment(ownerToken, snippetId, "owner-example.txt", "owner copybara");
-        String otherUserToken = signupAndLogin("snippet-attachment-delete-other@example.com", "snippet-attachment-delete-other");
-
-        mockMvc.perform(delete("/api/snippets/{snippetId}/attachments/{attachmentId}", snippetId, attachmentId)
-                        .header("Authorization", "Bearer " + otherUserToken))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("해당 스니펫을 찾을 수 없습니다."));
-    }
-
-    @Test
-    void downloadAttachmentReturnsFileWhenAttachmentBelongsToOwnedSnippet() throws Exception {
-        String accessToken = signupAndLogin("snippet-attachment-download@example.com", "snippet-attachment-download-user");
-        Long snippetId = createSnippet(accessToken, "Attachment download snippet", "attachment download target");
-        Long attachmentId = uploadAttachment(accessToken, snippetId, "download-example.txt", "download copybara");
-
-        mockMvc.perform(get("/api/snippets/{snippetId}/attachments/{attachmentId}/download", snippetId, attachmentId)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", containsString("attachment")))
-                .andExpect(header().string("Content-Disposition", containsString("download-example.txt")))
-                .andExpect(content().string("download copybara"));
-    }
-
-    @Test
-    void downloadAttachmentReturnsNotFoundWhenSnippetDoesNotBelongToAuthenticatedMember() throws Exception {
-        String ownerToken = signupAndLogin("snippet-attachment-download-owner@example.com", "snippet-attachment-download-owner");
-        Long snippetId = createSnippet(ownerToken, "Attachment download owner snippet", "attachment download owner target");
-        Long attachmentId = uploadAttachment(ownerToken, snippetId, "download-owner.txt", "owner download");
-        String otherUserToken = signupAndLogin("snippet-attachment-download-other@example.com", "snippet-attachment-download-other");
-
-        mockMvc.perform(get("/api/snippets/{snippetId}/attachments/{attachmentId}/download", snippetId, attachmentId)
-                        .header("Authorization", "Bearer " + otherUserToken))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("해당 스니펫을 찾을 수 없습니다."));
     }
 
     @Test
@@ -610,18 +519,6 @@ class SnippetControllerTest {
                                 """))
                 .andExpect(status().isOk());
 
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "delete-child.txt",
-                "text/plain",
-                "delete child".getBytes()
-        );
-
-        mockMvc.perform(multipart("/api/snippets/{snippetId}/attachments", snippetId)
-                        .file(file)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isCreated());
-
         mockMvc.perform(post("/api/snippets/{snippetId}/analysis", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk());
@@ -784,23 +681,6 @@ class SnippetControllerTest {
         return extractLongValue(result.getResponse().getContentAsString(), "categoryId");
     }
 
-    private Long uploadAttachment(String accessToken, Long snippetId, String originalName, String content) throws Exception {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                originalName,
-                "text/plain",
-                content.getBytes()
-        );
-
-        MvcResult result = mockMvc.perform(multipart("/api/snippets/{snippetId}/attachments", snippetId)
-                        .file(file)
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        return extractAttachmentId(result.getResponse().getContentAsString());
-    }
-
     private String extractAccessToken(String responseBody) {
         String marker = "\"accessToken\":\"";
         int start = responseBody.indexOf(marker) + marker.length();
@@ -810,10 +690,6 @@ class SnippetControllerTest {
 
     private Long extractSnippetId(String responseBody) {
         return extractLongValue(responseBody, "snippetId");
-    }
-
-    private Long extractAttachmentId(String responseBody) {
-        return extractLongValue(responseBody, "attachmentId");
     }
 
     private Long extractLongValue(String responseBody, String fieldName) {

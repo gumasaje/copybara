@@ -33,15 +33,6 @@ export type CategorySummary = {
   name: string;
 };
 
-export type Attachment = {
-  attachmentId: number;
-  originalName: string;
-  storedName: string;
-  contentType: string;
-  fileSize: number;
-  uploadedAt: string;
-};
-
 export type SnippetSummary = {
   snippetId: number;
   title: string;
@@ -63,7 +54,6 @@ export type SnippetDetail = {
   category: CategorySummary | null;
   favorite: boolean;
   tags: string[];
-  attachments: Attachment[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

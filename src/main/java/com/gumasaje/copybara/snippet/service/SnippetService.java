@@ -1,7 +1,5 @@
 package com.gumasaje.copybara.snippet.service;
 
-import com.gumasaje.copybara.attachment.dto.AttachmentResponse;
-import com.gumasaje.copybara.attachment.service.AttachmentService;
 import com.gumasaje.copybara.category.domain.Category;
 import com.gumasaje.copybara.category.dto.CategorySummaryResponse;
 import com.gumasaje.copybara.category.service.CategoryService;
@@ -34,20 +32,17 @@ public class SnippetService {
     private final SnippetRepository snippetRepository;
     private final MemberRepository memberRepository;
     private final TagRepository tagRepository;
-    private final AttachmentService attachmentService;
     private final CategoryService categoryService;
 
     public SnippetService(
             SnippetRepository snippetRepository,
             MemberRepository memberRepository,
             TagRepository tagRepository,
-            AttachmentService attachmentService,
             CategoryService categoryService
     ) {
         this.snippetRepository = snippetRepository;
         this.memberRepository = memberRepository;
         this.tagRepository = tagRepository;
-        this.attachmentService = attachmentService;
         this.categoryService = categoryService;
     }
 
@@ -232,7 +227,6 @@ public class SnippetService {
                 extractCategory(snippet),
                 snippet.isFavorite(),
                 extractTagNames(snippet),
-                extractAttachments(snippet),
                 snippet.getCreatedAt(),
                 snippet.getUpdatedAt(),
                 snippet.getDeletedAt()
@@ -256,9 +250,5 @@ public class SnippetService {
             return null;
         }
         return categoryService.toSummaryResponse(snippet.getCategory());
-    }
-
-    private List<AttachmentResponse> extractAttachments(Snippet snippet) {
-        return snippet.getAttachments().stream().map(attachmentService::toResponse).toList();
     }
 }

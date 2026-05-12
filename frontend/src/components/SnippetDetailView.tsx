@@ -130,14 +130,10 @@ export function SnippetDetailView({
       <section className="detail-card tab-card">
         <div className="card-heading">
           <div>
-            <span className="eyebrow">Resources</span>
-            <h3>Notes & Files</h3>
+            <h3>Notes</h3>
           </div>
         </div>
         <div className="resource-subsection">
-          <div className="resource-subsection-header">
-            <span className="eyebrow">Notes</span>
-          </div>
           <div className="memo-editor-container">
             <textarea
               value={notesDraft}
@@ -168,28 +164,6 @@ export function SnippetDetailView({
             </div>
           </div>
         </div>
-
-        {snippetDetail.attachments.length > 0 && (
-          <div className="resource-subsection">
-            <div className="resource-subsection-header">
-              <span className="eyebrow">Files</span>
-            </div>
-            <div className="attachment-list">
-              {snippetDetail.attachments.map((attachment) => (
-                <a
-                  key={attachment.attachmentId}
-                  className="attachment-row"
-                  href={`/api/snippets/${snippetDetail.snippetId}/attachments/${attachment.attachmentId}/download`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span>{attachment.originalName}</span>
-                  <span>{Math.round(attachment.fileSize / 1024)} KB</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
       </section>
 
       <section className="detail-card tab-card">
