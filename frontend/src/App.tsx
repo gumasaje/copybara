@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { api, getStoredToken, setStoredToken } from "./api";
+import { api } from "./api";
 import { AuthPage } from "./components/AuthPage";
 import { SidebarPane } from "./components/app/SidebarPane";
 import { WorkspacePane } from "./components/app/WorkspacePane";
@@ -8,7 +8,8 @@ import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { SnippetModal } from "./components/modals/SnippetModal";
 import { FolderMenu } from "./components/menus/FolderMenu";
 import { SidebarSnippetMenu } from "./components/menus/SidebarSnippetMenu";
-import type { Category, SnippetDetail, SnippetFormState, SnippetSummary, User } from "./types";
+import type { Category, SnippetDetail, SnippetFormState, SnippetSummary } from "./types";
+import { useAuthSession } from "./hooks/useAuthSession";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import { parseSidebarMenuKey, parseTags } from "./utils/helpers";
 
@@ -26,11 +27,6 @@ export default function App() {
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const draggedSnippetRef = useRef<SnippetSummary | null>(null);
   const draggedCategoryRef = useRef<Category | null>(null);
-  const [token, setToken] = useState<string | null>(() => getStoredToken());
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingSession, setLoadingSession] = useState(true);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [authError, setAuthError] = useState<string | null>(null);
   const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(null);
   const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
   const [keyword, setKeyword] = useState("");
@@ -65,6 +61,16 @@ export default function App() {
   const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
+
+  const {
+    user,
+    loadingSession,
+    authMode,
+    setAuthMode,
+    authError,
+    handleAuthSubmit,
+    handleLogout: logoutSession
+  } = useAuthSession();
 
   const {
     categories,
@@ -167,29 +173,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    const bootstrap = async () => {
-      if (!token) {
-        setLoadingSession(false);
-        return;
-      }
-      try {
-        const me = await api.getMe();
-        setUser(me);
-      } catch {
-        setStoredToken(null);
-        setToken(null);
-      } finally {
-        setLoadingSession(false);
-      }
-    };
-    bootstrap();
-  }, [token]);
-
-  useEffect(() => {
-    setAuthError(null);
-  }, [authMode]);
-
-  useEffect(() => {
     setOpenSidebarSnippetMenuId(null);
   }, [selectedSnippetId, keyword]);
 
@@ -262,25 +245,6 @@ export default function App() {
   useEffect(() => {
     detailPaneRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [selectedSnippetId, selectedSidebarScope, overviewMode]);
-
-  async function handleAuthSubmit(formData: FormData) {
-    const email = String(formData.get("email") ?? "");
-    const password = String(formData.get("password") ?? "");
-    const nickname = String(formData.get("nickname") ?? "");
-    setAuthError(null);
-
-    try {
-      if (authMode === "signup") {
-        await api.signup(email, password, nickname);
-      }
-      const result = await api.login(email, password);
-      setStoredToken(result.accessToken);
-      setToken(result.accessToken);
-      setUser({ memberId: result.memberId, email: result.email, nickname: result.nickname });
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "인증에 실패했습니다.");
-    }
-  }
 
   function openCreateSnippet() {
     setEditingSnippet(null);
@@ -445,9 +409,7 @@ export default function App() {
   }
 
   function handleLogout() {
-    setStoredToken(null);
-    setToken(null);
-    setUser(null);
+    logoutSession();
     setSelectedSnippetId(null);
     setSnippetDetail(null);
   }
