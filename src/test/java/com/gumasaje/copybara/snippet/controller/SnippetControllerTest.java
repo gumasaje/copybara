@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -237,6 +236,51 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("JWT filter snippet"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void getMySnippetsFiltersByNotesKeyword() throws Exception {
+        String accessToken = signupAndLogin("snippet-notes-search@example.com", "snippet-notes-search-user");
+        Long matchingSnippetId = createSnippet(accessToken, "Array snippet", "array-content");
+        Long nonMatchingSnippetId = createSnippet(accessToken, "Tree snippet", "tree-content");
+
+        updateNotes(accessToken, matchingSnippetId, "two pointers review");
+        updateNotes(accessToken, nonMatchingSnippetId, "dfs memo");
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("keyword", "pointers")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].snippetId").value(matchingSnippetId))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void getMySnippetsFiltersByTagNameUsingKeywordOnly() throws Exception {
+        String accessToken = signupAndLogin("snippet-tag-keyword@example.com", "snippet-tag-keyword-user");
+        createSnippetWithTags(accessToken, "Auth snippet", "token-content", "[\"Spring Security\"]");
+        createSnippetWithTags(accessToken, "Data snippet", "jdbc-content", "[\"Database\"]");
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("keyword", "security")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Auth snippet"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void getMySnippetsFiltersByLanguageUsingKeywordOnly() throws Exception {
+        String accessToken = signupAndLogin("snippet-language-keyword@example.com", "snippet-language-keyword-user");
+        createSnippetWithLanguage(accessToken, "Java snippet", "class Example {}", "Java");
+        createSnippetWithLanguage(accessToken, "Python snippet", "print('hi')", "Python");
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("keyword", "python")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Python snippet"))
                 .andExpect(jsonPath("$[1]").doesNotExist());
     }
 
@@ -645,16 +689,24 @@ class SnippetControllerTest {
         return createSnippet(accessToken, title, content, null, tagsJson);
     }
 
+    private Long createSnippetWithLanguage(String accessToken, String title, String content, String language) throws Exception {
+        return createSnippet(accessToken, title, content, null, "[\"Java\"]", language);
+    }
+
     private Long createSnippet(String accessToken, String title, String content, Long categoryId, String tagsJson) throws Exception {
+        return createSnippet(accessToken, title, content, categoryId, tagsJson, "Java");
+    }
+
+    private Long createSnippet(String accessToken, String title, String content, Long categoryId, String tagsJson, String language) throws Exception {
         String requestBody = """
                 {
                   "title": "%s",
                   "content": "%s",
-                  "language": "Java",
+                  "language": "%s",
                   "categoryId": %s,
                   "tags": %s
                 }
-                """.formatted(title, content, categoryId == null ? "null" : categoryId.toString(), tagsJson);
+                """.formatted(title, content, language, categoryId == null ? "null" : categoryId.toString(), tagsJson);
 
         MvcResult result = mockMvc.perform(post("/api/snippets")
                         .header("Authorization", "Bearer " + accessToken)
@@ -664,6 +716,18 @@ class SnippetControllerTest {
                 .andReturn();
 
         return extractSnippetId(result.getResponse().getContentAsString());
+    }
+
+    private void updateNotes(String accessToken, Long snippetId, String notes) throws Exception {
+        mockMvc.perform(put("/api/snippets/{snippetId}/notes", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "%s"
+                                }
+                                """.formatted(notes)))
+                .andExpect(status().isOk());
     }
 
     private Long createCategory(String accessToken, String name) throws Exception {
