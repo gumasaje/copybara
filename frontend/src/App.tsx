@@ -7,7 +7,8 @@ import { ConfirmDialog } from "./components/modals/ConfirmDialog";
 import { SnippetModal } from "./components/modals/SnippetModal";
 import { FolderMenu } from "./components/menus/FolderMenu";
 import { SidebarSnippetMenu } from "./components/menus/SidebarSnippetMenu";
-import type { Category, SnippetDetail, SnippetFormState, SnippetSummary } from "./types";
+import { type SidebarTagGroup } from "./components/sidebar/TagsSection";
+import type { Category, SearchOverviewState, SnippetDetail, SnippetFormState, SnippetSummary } from "./types";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { useSidebarInteractions } from "./hooks/useSidebarInteractions";
 import { useWorkspaceActions } from "./hooks/useWorkspaceActions";
@@ -19,7 +20,7 @@ const DEFAULT_FORM: SnippetFormState = {
   content: "",
   language: "Java",
   categoryId: null,
-  tagsText: "Java"
+  tagsText: ""
 };
 
 export default function App() {
@@ -29,8 +30,8 @@ export default function App() {
   const draggedCategoryRef = useRef<Category | null>(null);
   const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(null);
   const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
-  const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [showComposer, setShowComposer] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<SnippetDetail | null>(null);
   const [formState, setFormState] = useState<SnippetFormState>(DEFAULT_FORM);
@@ -49,7 +50,8 @@ export default function App() {
   const [snippetModalTarget, setSnippetModalTarget] = useState<SnippetSummary | null>(null);
   const [snippetTitleDraft, setSnippetTitleDraft] = useState("");
   const [snippetMoveCategoryId, setSnippetMoveCategoryId] = useState<number | null>(null);
-  const [overviewMode, setOverviewMode] = useState<"all" | "trash" | null>(null);
+  const [overviewMode, setOverviewMode] = useState<"all" | "trash" | "search" | null>(null);
+  const [searchOverview, setSearchOverview] = useState<SearchOverviewState | null>(null);
 
   const {
     user,
@@ -147,6 +149,23 @@ export default function App() {
     return allSnippets.filter((s) => !s.favorite).slice(0, 8);
   }, [allSnippets]);
 
+  const tagGroups = useMemo<SidebarTagGroup[]>(() => {
+    const groups = new Map<string, SnippetSummary[]>();
+
+    for (const snippet of allSnippets) {
+      for (const tag of snippet.tags) {
+        const existing = groups.get(tag) ?? [];
+        existing.push(snippet);
+        groups.set(tag, existing);
+      }
+    }
+
+    return [...groups.entries()]
+      .map(([tag, snippets]) => ({ tag, snippets }))
+      .sort((left, right) => right.snippets.length - left.snippets.length || left.tag.localeCompare(right.tag))
+      .slice(0, 12);
+  }, [allSnippets]);
+
   const {
     openFolderMenuId,
     openFolderMenuStyle,
@@ -163,6 +182,8 @@ export default function App() {
     setIsFavoritesExpanded,
     isRecentsExpanded,
     setIsRecentsExpanded,
+    isTagsExpanded,
+    setIsTagsExpanded,
     activeDropTarget,
     setActiveDropTarget,
     draggedCategoryId,
@@ -201,8 +222,11 @@ export default function App() {
       const categoryId = Number(selectedSidebarScope.replace("folder-", ""));
       return allSnippets.filter((snippet) => snippet.category?.categoryId === categoryId);
     }
+    if (selectedSidebarScope?.startsWith("tag-")) {
+      return tagGroups.find((group) => `tag-${encodeURIComponent(group.tag)}` === selectedSidebarScope)?.snippets ?? [];
+    }
     return allSnippets;
-  }, [allSnippets, favoriteSnippets, recentSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
+  }, [allSnippets, favoriteSnippets, recentSnippets, selectedSidebarScope, tagGroups, trashSnippets, uncategorizedSnippets]);
 
   useEffect(() => {
     if (scopedSidebarSnippets.length > 0 && (selectedSnippetId == null || !scopedSidebarSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
@@ -269,9 +293,11 @@ export default function App() {
   function goHome() {
     setKeyword("");
     setSearchInput("");
+    setSearchOverview(null);
     setExpandedCategories(new Set());
     setIsRecentsExpanded(true);
     setIsFoldersExpanded(true);
+    setIsTagsExpanded(true);
     setOverviewMode(null);
     closeAllMenus();
     if (uncategorizedSnippets.length > 0) {
@@ -287,8 +313,20 @@ export default function App() {
 
   function openSnippetFromSidebar(snippetId: number, scope: string) {
     setOverviewMode(null);
+    setSearchOverview(null);
     setSelectedSidebarScope(scope);
     setSelectedSnippetId(snippetId);
+  }
+
+  function openSearchGroup(title: string, caption: string, snippets: SnippetSummary[]) {
+    openSearchGroupWithScope(title, caption, snippets, "search");
+  }
+
+  function openSearchGroupWithScope(title: string, caption: string, snippets: SnippetSummary[], scope: string) {
+    setOverviewMode("search");
+    setSearchOverview({ title, caption, scope, snippets });
+    setSelectedSidebarScope(scope);
+    setSelectedSnippetId(null);
   }
 
   function handleSidebarItemKeyDown(event: React.KeyboardEvent<HTMLElement>, snippetId: number, scope: string) {
@@ -486,23 +524,35 @@ export default function App() {
         isFavoritesExpanded={isFavoritesExpanded}
         isRecentsExpanded={isRecentsExpanded}
         isFoldersExpanded={isFoldersExpanded}
+        isTagsExpanded={isTagsExpanded}
         searchInput={searchInput}
+        searchQuery={keyword}
         overviewMode={overviewMode}
         expandedCategories={expandedCategories}
+        tagGroups={tagGroups}
         sidebarSnippetMenuKey={sidebarSnippetMenuKey}
         onGoHome={goHome}
         onCloseSidebar={() => setIsSidebarOpen(false)}
         onSearchInputChange={setSearchInput}
-        onSearchSubmit={() => setKeyword(searchInput)}
+        onSearchSubmit={() => {
+          setKeyword(searchInput.trim());
+          setOverviewMode(null);
+          setSearchOverview(null);
+        }}
         onOpenCreateSnippet={openCreateSnippet}
         onToggleFavoritesExpanded={() => setIsFavoritesExpanded((prev) => !prev)}
         onToggleRecentsExpanded={() => setIsRecentsExpanded((prev) => !prev)}
         onToggleFoldersExpanded={() => setIsFoldersExpanded((prev) => !prev)}
+        onToggleTagsExpanded={() => setIsTagsExpanded((prev) => !prev)}
         onViewAll={() => {
           setOverviewMode("all");
+          setSearchOverview(null);
           setIsRecentsExpanded(true);
         }}
         onOpenSnippet={openSnippetFromSidebar}
+        onOpenTagGroup={(tag, snippets, scope) =>
+          openSearchGroupWithScope(`#${tag}`, `${snippets.length} snippet${snippets.length === 1 ? "" : "s"} tagged with ${tag}`, snippets, scope)
+        }
         onSidebarItemKeyDown={handleSidebarItemKeyDown}
         onSnippetDragStart={handleSnippetDragStart}
         onSnippetDragEnd={handleSnippetDragEnd}
@@ -510,6 +560,7 @@ export default function App() {
         onOpenCreateCategoryModal={openCreateCategoryModal}
         onSelectInbox={() => {
           setOverviewMode(null);
+          setSearchOverview(null);
           setSelectedSidebarScope("inbox");
           if (uncategorizedSnippets.length > 0) {
             setSelectedSnippetId(uncategorizedSnippets[0].snippetId);
@@ -517,6 +568,7 @@ export default function App() {
         }}
         onToggleCategory={(categoryId) => {
           setOverviewMode(null);
+          setSearchOverview(null);
           toggleCategory(categoryId);
         }}
         onSnippetDragOver={handleSnippetDragOver}
@@ -531,7 +583,10 @@ export default function App() {
         onCategoryReorderDragLeave={handleCategoryReorderDragLeave}
         onCategoryReorderDrop={onCategoryReorderDrop}
         onToggleFolderMenu={toggleFolderMenu}
-        onOpenTrash={() => setOverviewMode("trash")}
+        onOpenTrash={() => {
+          setOverviewMode("trash");
+          setSearchOverview(null);
+        }}
         onLogout={handleLogout}
         sidebarScrollRef={(node) => {
           sidebarScrollRef.current = node;
@@ -544,6 +599,7 @@ export default function App() {
         overviewMode={overviewMode}
         allSnippets={allSnippets}
         trashSnippets={trashSnippets}
+        searchOverview={searchOverview}
         snippetDetail={snippetDetail}
         snippetAnalysis={snippetAnalysis}
         copyStatus={copyStatus}
@@ -554,6 +610,7 @@ export default function App() {
         onOpenCreateSnippet={openCreateSnippet}
         onSelectSnippet={(snippetId, scope) => {
           setOverviewMode(null);
+          setSearchOverview(null);
           setSelectedSidebarScope(scope);
           setSelectedSnippetId(snippetId);
         }}

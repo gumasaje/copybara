@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { PanelLeftOpen, Plus } from "lucide-react";
-import type { SnippetAnalysis, SnippetDetail, SnippetSummary } from "../../types";
+import type { SearchOverviewState, SnippetAnalysis, SnippetDetail, SnippetSummary } from "../../types";
 
 const OverviewListView = lazy(() => import("../OverviewListView").then((module) => ({ default: module.OverviewListView })));
 const SnippetDetailView = lazy(() => import("../SnippetDetailView").then((module) => ({ default: module.SnippetDetailView })));
@@ -8,9 +8,10 @@ const SnippetDetailView = lazy(() => import("../SnippetDetailView").then((module
 type WorkspacePaneProps = {
   isSidebarOpen: boolean;
   screenError: string | null;
-  overviewMode: "all" | "trash" | null;
+  overviewMode: "all" | "trash" | "search" | null;
   allSnippets: SnippetSummary[];
   trashSnippets: SnippetSummary[];
+  searchOverview: SearchOverviewState | null;
   snippetDetail: SnippetDetail | null;
   snippetAnalysis: SnippetAnalysis | null;
   copyStatus: "idle" | "copied";
@@ -38,6 +39,7 @@ export function WorkspacePane({
   overviewMode,
   allSnippets,
   trashSnippets,
+  searchOverview,
   snippetDetail,
   snippetAnalysis,
   copyStatus,
@@ -77,6 +79,7 @@ export function WorkspacePane({
             mode={overviewMode}
             allSnippets={allSnippets}
             trashSnippets={trashSnippets}
+            searchOverview={searchOverview}
             onSelectSnippet={onSelectSnippet}
             onRestoreSnippet={onRestoreSnippet}
             onDeleteSnippet={onDeleteSnippetFromSummary}

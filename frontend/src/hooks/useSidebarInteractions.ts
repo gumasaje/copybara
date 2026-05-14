@@ -33,6 +33,7 @@ export function useSidebarInteractions({
   const [isFoldersExpanded, setIsFoldersExpanded] = useState(true);
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [isRecentsExpanded, setIsRecentsExpanded] = useState(true);
+  const [isTagsExpanded, setIsTagsExpanded] = useState(true);
   const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
   const [draggedCategoryId, setDraggedCategoryId] = useState<number | null>(null);
 
@@ -211,6 +212,8 @@ export function useSidebarInteractions({
     setIsFavoritesExpanded,
     isRecentsExpanded,
     setIsRecentsExpanded,
+    isTagsExpanded,
+    setIsTagsExpanded,
     activeDropTarget,
     setActiveDropTarget,
     draggedCategoryId,

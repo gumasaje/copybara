@@ -4,6 +4,7 @@ import { PinnedSection } from "../sidebar/PinnedSection";
 import { RecentsSection } from "../sidebar/RecentsSection";
 import { SearchResultsSection } from "../sidebar/SearchResultsSection";
 import { SidebarFooter } from "../sidebar/SidebarFooter";
+import { TagsSection, type SidebarTagGroup } from "../sidebar/TagsSection";
 import type { Category, SnippetSummary, User } from "../../types";
 
 type SidebarPaneProps = {
@@ -24,9 +25,12 @@ type SidebarPaneProps = {
   isFavoritesExpanded: boolean;
   isRecentsExpanded: boolean;
   isFoldersExpanded: boolean;
+  isTagsExpanded: boolean;
   searchInput: string;
-  overviewMode: "all" | "trash" | null;
+  searchQuery: string;
+  overviewMode: "all" | "trash" | "search" | null;
   expandedCategories: Set<number>;
+  tagGroups: SidebarTagGroup[];
   sidebarSnippetMenuKey: (scope: string, snippetId: number) => string;
   onGoHome: () => void;
   onCloseSidebar: () => void;
@@ -36,8 +40,10 @@ type SidebarPaneProps = {
   onToggleFavoritesExpanded: () => void;
   onToggleRecentsExpanded: () => void;
   onToggleFoldersExpanded: () => void;
+  onToggleTagsExpanded: () => void;
   onViewAll: () => void;
   onOpenSnippet: (snippetId: number, scope: string) => void;
+  onOpenTagGroup: (tag: string, snippets: SnippetSummary[], scope: string) => void;
   onSidebarItemKeyDown: (event: React.KeyboardEvent<HTMLElement>, snippetId: number, scope: string) => void;
   onSnippetDragStart: (snippet: SnippetSummary, event: React.DragEvent<HTMLElement>) => void;
   onSnippetDragEnd: () => void;
@@ -80,9 +86,12 @@ export function SidebarPane({
   isFavoritesExpanded,
   isRecentsExpanded,
   isFoldersExpanded,
+  isTagsExpanded,
   searchInput,
+  searchQuery,
   overviewMode,
   expandedCategories,
+  tagGroups,
   sidebarSnippetMenuKey,
   onGoHome,
   onCloseSidebar,
@@ -92,8 +101,10 @@ export function SidebarPane({
   onToggleFavoritesExpanded,
   onToggleRecentsExpanded,
   onToggleFoldersExpanded,
+  onToggleTagsExpanded,
   onViewAll,
   onOpenSnippet,
+  onOpenTagGroup,
   onSidebarItemKeyDown,
   onSnippetDragStart,
   onSnippetDragEnd,
@@ -142,7 +153,7 @@ export function SidebarPane({
                   onSearchSubmit();
                 }
               }}
-              placeholder="Search"
+              placeholder="Search snippets"
             />
           </div>
           <button className="primary-button new-snippet-pill" onClick={onOpenCreateSnippet}>
@@ -157,6 +168,7 @@ export function SidebarPane({
           {isSearchMode ? (
             <SearchResultsSection
               snippets={allSnippets}
+              query={searchQuery}
               selectedSnippetId={selectedSnippetId}
               selectedSidebarScope={selectedSidebarScope}
               onOpenSnippet={onOpenSnippet}
@@ -228,6 +240,14 @@ export function SidebarPane({
                 onCategoryReorderDrop={onCategoryReorderDrop}
                 onToggleSnippetMenu={onToggleSnippetMenu}
                 onToggleFolderMenu={onToggleFolderMenu}
+              />
+
+              <TagsSection
+                tags={tagGroups}
+                isExpanded={isTagsExpanded}
+                selectedSidebarScope={selectedSidebarScope}
+                onToggleExpanded={onToggleTagsExpanded}
+                onOpenTagGroup={onOpenTagGroup}
               />
             </>
           )}

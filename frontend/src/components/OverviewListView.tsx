@@ -1,11 +1,12 @@
 import { FolderOpen, Pin, Trash2 } from "lucide-react";
-import type { SnippetSummary } from "../types";
+import type { SearchOverviewState, SnippetSummary } from "../types";
 import { formatOverviewSecondary, formatOverviewTimestamp } from "../utils/formatters";
 
 type OverviewListViewProps = {
-  mode: "all" | "trash";
+  mode: "all" | "trash" | "search";
   allSnippets: SnippetSummary[];
   trashSnippets: SnippetSummary[];
+  searchOverview: SearchOverviewState | null;
   onSelectSnippet: (snippetId: number, scope: string | null) => void;
   onRestoreSnippet: (snippetId: number) => Promise<void> | void;
   onDeleteSnippet: (snippet: SnippetSummary) => void;
@@ -15,30 +16,37 @@ export function OverviewListView({
   mode,
   allSnippets,
   trashSnippets,
+  searchOverview,
   onSelectSnippet,
   onRestoreSnippet,
   onDeleteSnippet
 }: OverviewListViewProps) {
   const snippets = mode === "trash"
     ? trashSnippets
-    : [...allSnippets].sort((left, right) => {
+    : mode === "search"
+      ? searchOverview?.snippets ?? []
+      : [...allSnippets].sort((left, right) => {
         if (left.favorite !== right.favorite) {
           return left.favorite ? -1 : 1;
         }
         return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
       });
 
+  const title = mode === "trash" ? "Trash" : mode === "search" ? searchOverview?.title ?? "Search results" : "All snippets";
+  const caption = mode === "trash"
+    ? `${trashSnippets.length} deleted snippet${trashSnippets.length === 1 ? "" : "s"}`
+    : mode === "search"
+      ? searchOverview?.caption ?? "Grouped search results"
+      : `${allSnippets.length} snippet${allSnippets.length === 1 ? "" : "s"} in your archive`;
+  const rowScope = mode === "trash" ? "trash" : mode === "search" ? searchOverview?.scope ?? "search" : null;
+
   return (
     <section className="all-snippets-view">
       <div className="pane-header detail-pane-header">
         <div>
-          <span className="eyebrow">Library</span>
-          <h1 className="workspace-title">{mode === "trash" ? "Trash" : "All snippets"}</h1>
-          <p className="overview-caption">
-            {mode === "trash"
-              ? `${trashSnippets.length} deleted snippet${trashSnippets.length === 1 ? "" : "s"}`
-              : `${allSnippets.length} snippet${allSnippets.length === 1 ? "" : "s"} in your archive`}
-          </p>
+          <span className="eyebrow">{mode === "search" ? "Search group" : "Library"}</span>
+          <h1 className="workspace-title">{title}</h1>
+          <p className="overview-caption">{caption}</p>
         </div>
       </div>
       <div className="all-snippets-list">
@@ -54,11 +62,11 @@ export function OverviewListView({
               role="button"
               tabIndex={0}
               className="overview-row"
-              onClick={() => onSelectSnippet(snippet.snippetId, mode === "trash" ? "trash" : null)}
+              onClick={() => onSelectSnippet(snippet.snippetId, rowScope)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  onSelectSnippet(snippet.snippetId, mode === "trash" ? "trash" : null);
+                  onSelectSnippet(snippet.snippetId, rowScope);
                 }
               }}
             >

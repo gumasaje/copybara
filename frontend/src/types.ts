@@ -72,3 +72,9 @@ export type ErrorResponse = {
   code: string;
   message: string;
 };
+
+export type SearchOverviewState = {
+  title: string;
+  caption: string;
+  snippets: SnippetSummary[];
+};
