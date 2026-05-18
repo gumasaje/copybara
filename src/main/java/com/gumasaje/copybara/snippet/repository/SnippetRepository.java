@@ -20,7 +20,6 @@ public interface SnippetRepository extends JpaRepository<Snippet, Long> {
     @Query("""
             select distinct s
             from Snippet s
-            left join s.tags t
             where s.member.id = :memberId
               and s.deletedAt is null
               and (:categoryId is null or s.category.id = :categoryId)
@@ -30,9 +29,20 @@ public interface SnippetRepository extends JpaRepository<Snippet, Long> {
                 or lower(s.content) like lower(concat('%', :keyword, '%'))
                 or lower(coalesce(s.notes, '')) like lower(concat('%', :keyword, '%'))
                 or lower(coalesce(s.language, '')) like lower(concat('%', :keyword, '%'))
-                or lower(coalesce(t.name, '')) like lower(concat('%', :keyword, '%'))
+                or exists (
+                    select 1
+                    from s.tags keywordTag
+                    where lower(keywordTag.name) like lower(concat('%', :keyword, '%'))
+                )
               )
-              and (:normalizedTag is null or t.normalizedName = :normalizedTag)
+              and (
+                :normalizedTag is null
+                or exists (
+                    select 1
+                    from s.tags filteredTag
+                    where filteredTag.normalizedName = :normalizedTag
+                )
+              )
             order by s.updatedAt desc
             """)
     List<Snippet> searchMySnippets(

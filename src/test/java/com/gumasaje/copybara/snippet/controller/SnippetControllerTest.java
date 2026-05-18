@@ -407,6 +407,22 @@ class SnippetControllerTest {
     }
 
     @Test
+    void getMySnippetsAllowsKeywordAndTagToMatchDifferentTagsOnSameSnippet() throws Exception {
+        String accessToken = signupAndLogin("snippet-keyword-tag-combo@example.com", "snippet-keyword-tag-combo-user");
+        createSnippetWithTags(accessToken, "Combined tag snippet", "combined-tag-content", "[\"Spring\", \"Security\"]");
+        createSnippetWithTags(accessToken, "Spring only snippet", "spring-only-content", "[\"Spring\"]");
+        createSnippetWithTags(accessToken, "Security only snippet", "security-only-content", "[\"Security\"]");
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("keyword", "spring")
+                        .param("tag", "security")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Combined tag snippet"))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
     void getMySnippetReturnsDetailWhenSnippetBelongsToAuthenticatedMember() throws Exception {
         String accessToken = signupAndLogin("snippet-detail@example.com", "snippet-detail-user");
         Long snippetId = createSnippet(accessToken, "Detail snippet", "System.out.println('hello');");
