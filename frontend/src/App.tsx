@@ -13,6 +13,7 @@ import { useAuthSession } from "./hooks/useAuthSession";
 import { useSidebarInteractions } from "./hooks/useSidebarInteractions";
 import { useWorkspaceActions } from "./hooks/useWorkspaceActions";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
+import { parseSnippetFilterScope } from "./utils/helpers";
 
 const ComposerModal = lazy(() => import("./components/modals/ComposerModal").then((module) => ({ default: module.ComposerModal })));
 const DEFAULT_FORM: SnippetFormState = {
@@ -67,6 +68,7 @@ export default function App() {
     categories,
     setCategories,
     allSnippets,
+    scopedSnippets,
     trashSnippets,
     snippetDetail,
     setSnippetDetail,
@@ -136,6 +138,7 @@ export default function App() {
   });
 
   const isSearchMode = keyword.trim().length > 0;
+  const selectedServerFilter = useMemo(() => parseSnippetFilterScope(selectedSidebarScope), [selectedSidebarScope]);
 
   const uncategorizedSnippets = useMemo(() => {
     return allSnippets.filter((s) => s.category == null && !s.favorite);
@@ -219,14 +222,13 @@ export default function App() {
       return recentSnippets;
     }
     if (selectedSidebarScope?.startsWith("folder-")) {
-      const categoryId = Number(selectedSidebarScope.replace("folder-", ""));
-      return allSnippets.filter((snippet) => snippet.category?.categoryId === categoryId);
+      return scopedSnippets ?? [];
     }
     if (selectedSidebarScope?.startsWith("tag-")) {
-      return tagGroups.find((group) => `tag-${encodeURIComponent(group.tag)}` === selectedSidebarScope)?.snippets ?? [];
+      return scopedSnippets ?? [];
     }
     return allSnippets;
-  }, [allSnippets, favoriteSnippets, recentSnippets, selectedSidebarScope, tagGroups, trashSnippets, uncategorizedSnippets]);
+  }, [allSnippets, favoriteSnippets, recentSnippets, scopedSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
 
   useEffect(() => {
     if (scopedSidebarSnippets.length > 0 && (selectedSnippetId == null || !scopedSidebarSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
@@ -241,6 +243,19 @@ export default function App() {
   useEffect(() => {
     detailPaneRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [selectedSnippetId, selectedSidebarScope, overviewMode]);
+
+  useEffect(() => {
+    if (overviewMode !== "search" || selectedServerFilter == null || !selectedSidebarScope) {
+      return;
+    }
+
+    setSearchOverview((prev) => {
+      if (prev == null || prev.scope !== selectedSidebarScope) {
+        return prev;
+      }
+      return { ...prev, snippets: scopedSnippets ?? [] };
+    });
+  }, [overviewMode, scopedSnippets, selectedServerFilter, selectedSidebarScope]);
 
   function openCreateSnippet() {
     setEditingSnippet(null);
@@ -316,10 +331,6 @@ export default function App() {
     setSearchOverview(null);
     setSelectedSidebarScope(scope);
     setSelectedSnippetId(snippetId);
-  }
-
-  function openSearchGroup(title: string, caption: string, snippets: SnippetSummary[]) {
-    openSearchGroupWithScope(title, caption, snippets, "search");
   }
 
   function openSearchGroupWithScope(title: string, caption: string, snippets: SnippetSummary[], scope: string) {
@@ -551,7 +562,7 @@ export default function App() {
         }}
         onOpenSnippet={openSnippetFromSidebar}
         onOpenTagGroup={(tag, snippets, scope) =>
-          openSearchGroupWithScope(`#${tag}`, `${snippets.length} snippet${snippets.length === 1 ? "" : "s"} tagged with ${tag}`, snippets, scope)
+          openSearchGroupWithScope(`#${tag}`, `${snippets.length} snippet${snippets.length === 1 ? "" : "s"} tagged with ${tag}`, [], scope)
         }
         onSidebarItemKeyDown={handleSidebarItemKeyDown}
         onSnippetDragStart={handleSnippetDragStart}

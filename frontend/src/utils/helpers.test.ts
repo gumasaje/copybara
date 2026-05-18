@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSidebarMenuKey, parseTags } from "./helpers";
+import { parseSidebarMenuKey, parseSnippetFilterScope, parseTags } from "./helpers";
 
 describe("parseTags", () => {
   it("splits comma-separated tags and trims whitespace", () => {
@@ -18,5 +18,19 @@ describe("parseSidebarMenuKey", () => {
 
   it("supports non-folder scopes", () => {
     expect(parseSidebarMenuKey("favorites:7")).toEqual({ scope: "favorites", snippetId: 7 });
+  });
+});
+
+describe("parseSnippetFilterScope", () => {
+  it("extracts category filters from folder scopes", () => {
+    expect(parseSnippetFilterScope("folder-12")).toEqual({ categoryId: 12 });
+  });
+
+  it("extracts decoded tag filters from tag scopes", () => {
+    expect(parseSnippetFilterScope("tag-Spring%20Security")).toEqual({ tag: "Spring Security" });
+  });
+
+  it("returns null for non-server-backed scopes", () => {
+    expect(parseSnippetFilterScope("favorites")).toBeNull();
   });
 });

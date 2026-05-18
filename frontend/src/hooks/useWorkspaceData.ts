@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { Category, SnippetAnalysis, SnippetDetail, SnippetSummary, User } from "../types";
+import { parseSnippetFilterScope } from "../utils/helpers";
 
 type UseWorkspaceDataParams = {
   user: User | null;
@@ -17,6 +18,7 @@ export function useWorkspaceData({
 }: UseWorkspaceDataParams) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [allSnippets, setAllSnippets] = useState<SnippetSummary[]>([]);
+  const [scopedSnippets, setScopedSnippets] = useState<SnippetSummary[] | null>(null);
   const [trashSnippets, setTrashSnippets] = useState<SnippetSummary[]>([]);
   const [snippetDetail, setSnippetDetail] = useState<SnippetDetail | null>(null);
   const [snippetAnalysis, setSnippetAnalysis] = useState<SnippetAnalysis | null>(null);
@@ -30,6 +32,36 @@ export function useWorkspaceData({
     if (!user) return;
     void refreshWorkspace();
   }, [user, keyword]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const scopeFilter = parseSnippetFilterScope(selectedSidebarScope);
+    if (scopeFilter == null || keyword.trim().length > 0) {
+      setScopedSnippets(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const snippets = await api.getSnippets(scopeFilter);
+        if (!cancelled) {
+          setScopedSnippets(snippets);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setScreenError(error instanceof Error ? error.message : "필터 결과를 불러오지 못했습니다.");
+          setScopedSnippets(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, keyword, selectedSidebarScope]);
 
   useEffect(() => {
     if (!selectedSnippetId) {
@@ -124,6 +156,7 @@ export function useWorkspaceData({
     setCategories,
     allSnippets,
     setAllSnippets,
+    scopedSnippets,
     trashSnippets,
     setTrashSnippets,
     snippetDetail,

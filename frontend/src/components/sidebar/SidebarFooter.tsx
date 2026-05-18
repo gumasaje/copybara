@@ -3,7 +3,7 @@ import type { User } from "../../types";
 
 type SidebarFooterProps = {
   user: User;
-  overviewMode: "all" | "trash" | null;
+  overviewMode: "all" | "trash" | "search" | null;
   trashCount: number;
   onOpenTrash: () => void;
   onLogout: () => void;

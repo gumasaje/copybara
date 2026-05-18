@@ -76,5 +76,6 @@ export type ErrorResponse = {
 export type SearchOverviewState = {
   title: string;
   caption: string;
+  scope: string;
   snippets: SnippetSummary[];
 };
