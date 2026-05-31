@@ -55,12 +55,12 @@ export function AuthPage({ authMode, authError, onSubmit, onToggleMode }: AuthPa
             </label>
             <label className="auth-field">
               <span>Password</span>
-              <input name="password" type="password" placeholder="Enter password" required />
+              <input name="password" type="password" placeholder="Enter password" minLength={8} maxLength={20} required />
             </label>
             {authMode === "signup" && (
               <label className="auth-field">
                 <span>Nickname</span>
-                <input name="nickname" placeholder="How should we call you?" required />
+                <input name="nickname" placeholder="How should we call you?" maxLength={50} required />
               </label>
             )}
             {authError && <p className="error-text">{authError}</p>}

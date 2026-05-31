@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import type { Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror from "@uiw/react-codemirror";
-import { Copy, FolderOpen, Pencil, Pin, Sparkles, Trash2 } from "lucide-react";
+import { Copy, FolderOpen, Loader2, Pencil, Pin, Sparkles, Trash2 } from "lucide-react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { SnippetAnalysis, SnippetDetail } from "../types";
 import { loadExtensions } from "../utils/editor";
 
@@ -13,6 +15,7 @@ type SnippetDetailViewProps = {
   notesDraft: string;
   notesStatus: string | null;
   isSavingNotes: boolean;
+  isAnalyzing: boolean;
   onToggleFavorite: () => Promise<void> | void;
   onEditSnippet: () => void;
   onDeleteSnippet: () => void;
@@ -30,6 +33,7 @@ export function SnippetDetailView({
   notesDraft,
   notesStatus,
   isSavingNotes,
+  isAnalyzing,
   onToggleFavorite,
   onEditSnippet,
   onDeleteSnippet,
@@ -40,6 +44,9 @@ export function SnippetDetailView({
   onSaveNotes
 }: SnippetDetailViewProps) {
   const [editorExtensions, setEditorExtensions] = useState<Extension[]>([]);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const hasNotes = snippetDetail.notes != null && snippetDetail.notes.trim().length > 0;
+  const canEditNotes = snippetDetail.deletedAt == null;
 
   useEffect(() => {
     let active = true;
@@ -54,6 +61,23 @@ export function SnippetDetailView({
       active = false;
     };
   }, [snippetDetail.language]);
+
+  useEffect(() => {
+    setIsEditingNotes(false);
+  }, [snippetDetail.snippetId]);
+
+  async function saveNotes() {
+    await onSaveNotes();
+    setIsEditingNotes(false);
+  }
+
+  const markdownComponents: Components = {
+    a: ({ href, children }) => (
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    )
+  };
 
   return (
     <>
@@ -109,9 +133,9 @@ export function SnippetDetailView({
             <Copy size={16} />
           </button>
           {snippetDetail.deletedAt == null && (
-            <button className="primary-button compact" onClick={() => void onAnalyze()}>
-              <Sparkles size={16} />
-              AI summarize
+            <button className="primary-button compact" onClick={() => void onAnalyze()} disabled={isAnalyzing}>
+              {isAnalyzing ? <Loader2 size={16} className="spin-icon" /> : <Sparkles size={16} />}
+              {isAnalyzing ? "Analyzing..." : "AI summarize"}
             </button>
           )}
         </div>
@@ -132,37 +156,73 @@ export function SnippetDetailView({
           <div>
             <h3>Notes</h3>
           </div>
+          {canEditNotes && hasNotes && !isEditingNotes && (
+            <button className="secondary-button compact" onClick={() => setIsEditingNotes(true)}>
+              Edit
+            </button>
+          )}
         </div>
         <div className="resource-subsection">
-          <div className="memo-editor-container">
-            <textarea
-              value={notesDraft}
-              onChange={(event) => onNotesDraftChange(event.target.value)}
-              disabled={snippetDetail.deletedAt != null}
-              placeholder="Leave a quick note..."
-              onKeyDown={(event) => {
-                if (snippetDetail.deletedAt != null) {
-                  return;
-                }
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  void onSaveNotes();
-                }
-              }}
-            />
-            <div className="memo-editor-footer">
-              <span className="shortcut-hint">
-                {snippetDetail.deletedAt != null ? "Restore this snippet to edit notes." : notesStatus ?? "Ctrl/Cmd + Enter to save"}
-              </span>
-              <button
-                className="primary-button compact"
-                onClick={() => void onSaveNotes()}
-                disabled={isSavingNotes || snippetDetail.deletedAt != null}
-              >
-                {isSavingNotes ? "Saving..." : "Save notes"}
-              </button>
+          {isEditingNotes ? (
+            <div className="memo-editor-container">
+              <textarea
+                value={notesDraft}
+                onChange={(event) => onNotesDraftChange(event.target.value)}
+                disabled={!canEditNotes}
+                placeholder="Leave a quick note..."
+                onKeyDown={(event) => {
+                  if (!canEditNotes) {
+                    return;
+                  }
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    void saveNotes();
+                  }
+                }}
+              />
+              <div className="memo-editor-footer">
+                <span className="shortcut-hint">
+                  {!canEditNotes ? "Restore this snippet to edit notes." : notesStatus ?? "Ctrl/Cmd + Enter to save"}
+                </span>
+                <div className="memo-editor-actions">
+                  <button
+                    className="secondary-button compact"
+                    onClick={() => {
+                      onNotesDraftChange(snippetDetail.notes ?? "");
+                      setIsEditingNotes(false);
+                    }}
+                    disabled={isSavingNotes}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="primary-button compact"
+                    onClick={() => void saveNotes()}
+                    disabled={isSavingNotes || !canEditNotes}
+                  >
+                    {isSavingNotes ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : hasNotes ? (
+            <div className="notes-preview markdown-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {snippetDetail.notes ?? ""}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <div className="notes-empty">
+              <p className="muted-text">
+                {canEditNotes ? "No note yet." : "Restore this snippet to edit notes."}
+              </p>
+              {canEditNotes && (
+                <button className="secondary-button compact" onClick={() => setIsEditingNotes(true)}>
+                  Add note
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -175,18 +235,28 @@ export function SnippetDetailView({
           <button
             className="primary-button compact"
             onClick={() => void onAnalyze()}
-            disabled={snippetDetail.deletedAt != null}
+            disabled={snippetDetail.deletedAt != null || isAnalyzing}
           >
-            <Sparkles size={16} />
-            Run
+            {isAnalyzing ? <Loader2 size={16} className="spin-icon" /> : <Sparkles size={16} />}
+            {isAnalyzing ? "Analyzing..." : "Run"}
           </button>
         </div>
-        {snippetAnalysis ? (
+        {isAnalyzing ? (
+          <p className="muted-text">Analyzing snippet with AI...</p>
+        ) : snippetAnalysis ? (
           <>
-            <p className="analysis-summary">{snippetAnalysis.summary}</p>
+            <div className="analysis-summary markdown-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {snippetAnalysis.summary}
+              </ReactMarkdown>
+            </div>
             <ul className="analysis-list">
               {snippetAnalysis.keyPoints.map((point) => (
-                <li key={point}>{point}</li>
+                <li key={point}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ ...markdownComponents, p: "span" }}>
+                    {point}
+                  </ReactMarkdown>
+                </li>
               ))}
             </ul>
             <div className="tag-row">

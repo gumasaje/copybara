@@ -389,6 +389,16 @@ button {
   padding: 8px 12px;
 }
 
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .icon-button {
   width: 34px;
   height: 34px;
@@ -1526,6 +1536,70 @@ button {
   gap: 8px;
 }
 
+.markdown-content {
+  display: grid;
+  gap: 8px;
+}
+
+.markdown-content :is(p, ul, ol, pre, blockquote) {
+  margin: 0;
+}
+
+.markdown-content :is(ul, ol) {
+  padding-left: 20px;
+}
+
+.markdown-content code {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: #161922;
+  color: #f1f5f9;
+  font-size: 0.92em;
+}
+
+.markdown-content pre {
+  overflow-x: auto;
+  padding: 10px 12px;
+  border: 1px solid #23252a;
+  border-radius: 8px;
+  background: #0b0d12;
+}
+
+.markdown-content pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-content strong {
+  color: #f7f8f8;
+}
+
+.markdown-content a {
+  color: #9aa7ff;
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.notes-preview {
+  padding: 12px 14px;
+  border: 1px solid #23252a;
+  border-radius: 10px;
+  background: #0d1015;
+}
+
+.notes-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px dashed #23252a;
+  border-radius: 10px;
+}
+
 .context-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -2155,9 +2229,15 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 8px 12px;
   background: #111318;
   border-top: 1px solid #23252a;
+}
+
+.memo-editor-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .shortcut-hint {

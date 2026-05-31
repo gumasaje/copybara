@@ -77,6 +77,7 @@ export default function App() {
     setNotesDraft,
     notesStatus,
     isSavingNotes,
+    isAnalyzing,
     copyStatus,
     screenError,
     setScreenError,
@@ -118,6 +119,7 @@ export default function App() {
     snippetMoveCategoryId,
     categories,
     selectedSnippetId,
+    selectedSidebarScope,
     refreshWorkspace,
     refreshSnippet,
     setScreenError,
@@ -617,6 +619,7 @@ export default function App() {
         notesDraft={notesDraft}
         notesStatus={notesStatus}
         isSavingNotes={isSavingNotes}
+        isAnalyzing={isAnalyzing}
         onOpenSidebar={() => setIsSidebarOpen(true)}
         onOpenCreateSnippet={openCreateSnippet}
         onSelectSnippet={(snippetId, scope) => {

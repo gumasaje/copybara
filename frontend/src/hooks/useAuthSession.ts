@@ -32,6 +32,19 @@ export function useAuthSession() {
     setAuthError(null);
   }, [authMode]);
 
+  useEffect(() => {
+    function handleSessionExpired() {
+      setStoredToken(null);
+      setToken(null);
+      setUser(null);
+      setAuthMode("login");
+      setAuthError("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    }
+
+    window.addEventListener("copybara:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("copybara:session-expired", handleSessionExpired);
+  }, []);
+
   async function handleAuthSubmit(formData: FormData) {
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");

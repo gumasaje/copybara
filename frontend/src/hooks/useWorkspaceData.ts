@@ -25,6 +25,7 @@ export function useWorkspaceData({
   const [notesDraft, setNotesDraft] = useState("");
   const [notesStatus, setNotesStatus] = useState<string | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [screenError, setScreenError] = useState<string | null>(null);
 
@@ -133,10 +134,14 @@ export function useWorkspaceData({
   async function handleAnalyze() {
     if (!snippetDetail) return;
     try {
+      setScreenError(null);
+      setIsAnalyzing(true);
       const analysis = await api.createAnalysis(snippetDetail.snippetId);
       setSnippetAnalysis(analysis);
     } catch (error) {
       setScreenError(error instanceof Error ? error.message : "AI 분석 요청에 실패했습니다.");
+    } finally {
+      setIsAnalyzing(false);
     }
   }
 
@@ -167,6 +172,7 @@ export function useWorkspaceData({
     setNotesDraft,
     notesStatus,
     isSavingNotes,
+    isAnalyzing,
     copyStatus,
     screenError,
     setScreenError,

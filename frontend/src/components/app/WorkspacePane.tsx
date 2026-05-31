@@ -18,6 +18,7 @@ type WorkspacePaneProps = {
   notesDraft: string;
   notesStatus: string | null;
   isSavingNotes: boolean;
+  isAnalyzing: boolean;
   onOpenSidebar: () => void;
   onOpenCreateSnippet: () => void;
   onSelectSnippet: (snippetId: number, scope: string | null) => void;
@@ -46,6 +47,7 @@ export function WorkspacePane({
   notesDraft,
   notesStatus,
   isSavingNotes,
+  isAnalyzing,
   onOpenSidebar,
   onOpenCreateSnippet,
   onSelectSnippet,
@@ -94,6 +96,7 @@ export function WorkspacePane({
             notesDraft={notesDraft}
             notesStatus={notesStatus}
             isSavingNotes={isSavingNotes}
+            isAnalyzing={isAnalyzing}
             onToggleFavorite={onToggleFavorite}
             onEditSnippet={onEditSnippet}
             onDeleteSnippet={onDeleteSnippet}

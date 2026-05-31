@@ -23,6 +23,7 @@ type UseWorkspaceActionsParams = {
   snippetMoveCategoryId: number | null;
   categories: Category[];
   selectedSnippetId: number | null;
+  selectedSidebarScope: string | null;
   refreshWorkspace: () => Promise<void>;
   refreshSnippet: (snippetId: number) => Promise<void>;
   setScreenError: (value: string | null) => void;
@@ -55,6 +56,7 @@ export function useWorkspaceActions({
   snippetMoveCategoryId,
   categories,
   selectedSnippetId,
+  selectedSidebarScope,
   refreshWorkspace,
   refreshSnippet,
   setScreenError,
@@ -212,6 +214,9 @@ export function useWorkspaceActions({
       tone: "danger",
       onConfirm: async () => {
         await api.deleteCategory(category.categoryId);
+        if (selectedSidebarScope === `folder-${category.categoryId}`) {
+          setSelectedSidebarScope("inbox");
+        }
         await refreshWorkspace();
       }
     });

@@ -8,6 +8,7 @@ import type {
 } from "./types";
 
 const TOKEN_KEY = "copybara-access-token";
+const SESSION_EXPIRED_EVENT = "copybara:session-expired";
 
 export function getStoredToken() {
   return window.localStorage.getItem(TOKEN_KEY);
@@ -35,6 +36,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, headers });
 
   if (!response.ok) {
+    if (response.status === 401 && !isPublicAuthPath(path)) {
+      setStoredToken(null);
+      window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+      throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    }
+
     const error = (await response.json().catch(() => null)) as ErrorResponse | null;
     throw new Error(error?.message ?? "요청 처리 중 오류가 발생했습니다.");
   }
@@ -44,6 +51,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+function isPublicAuthPath(path: string) {
+  return path === "/api/auth/login" || path === "/api/auth/signup";
 }
 
 export const api = {
