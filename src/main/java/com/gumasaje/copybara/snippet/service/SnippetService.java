@@ -3,6 +3,7 @@ package com.gumasaje.copybara.snippet.service;
 import com.gumasaje.copybara.category.domain.Category;
 import com.gumasaje.copybara.category.dto.CategorySummaryResponse;
 import com.gumasaje.copybara.category.service.CategoryService;
+import com.gumasaje.copybara.analysis.repository.SnippetAnalysisRepository;
 import com.gumasaje.copybara.common.exception.InvalidLoginException;
 import com.gumasaje.copybara.common.exception.SnippetNotFoundException;
 import com.gumasaje.copybara.member.domain.Member;
@@ -33,17 +34,20 @@ public class SnippetService {
     private final MemberRepository memberRepository;
     private final TagRepository tagRepository;
     private final CategoryService categoryService;
+    private final SnippetAnalysisRepository snippetAnalysisRepository;
 
     public SnippetService(
             SnippetRepository snippetRepository,
             MemberRepository memberRepository,
             TagRepository tagRepository,
-            CategoryService categoryService
+            CategoryService categoryService,
+            SnippetAnalysisRepository snippetAnalysisRepository
     ) {
         this.snippetRepository = snippetRepository;
         this.memberRepository = memberRepository;
         this.tagRepository = tagRepository;
         this.categoryService = categoryService;
+        this.snippetAnalysisRepository = snippetAnalysisRepository;
     }
 
     public SnippetDetailResponse create(Long memberId, SnippetCreateRequest request) {
@@ -105,6 +109,8 @@ public class SnippetService {
 
     public SnippetDetailResponse update(Long memberId, Long snippetId, SnippetCreateRequest request) {
         Snippet snippet = findOwnedSnippet(memberId, snippetId);
+        snippet.clearAnalysis();
+        snippetAnalysisRepository.deleteBySnippetId(snippetId);
         snippet.update(
                 resolveCategory(memberId, request.categoryId()),
                 request.title(),

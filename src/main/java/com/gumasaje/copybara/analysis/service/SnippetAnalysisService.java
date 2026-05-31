@@ -40,11 +40,26 @@ public class SnippetAnalysisService {
 
         SnippetAnalysis analysis = snippetAnalysisRepository.findBySnippetId(snippetId)
                 .map(existing -> {
-                    existing.update(result.summary(), keyPoints, suggestedTags);
+                    existing.update(
+                            result.summary(),
+                            keyPoints,
+                            suggestedTags,
+                            snippetAnalysisGenerator.provider(),
+                            snippetAnalysisGenerator.model(),
+                            snippetAnalysisGenerator.promptVersion()
+                    );
                     return existing;
                 })
                 .orElseGet(() -> snippetAnalysisRepository.save(
-                        new SnippetAnalysis(snippet, result.summary(), keyPoints, suggestedTags)
+                        new SnippetAnalysis(
+                                snippet,
+                                result.summary(),
+                                keyPoints,
+                                suggestedTags,
+                                snippetAnalysisGenerator.provider(),
+                                snippetAnalysisGenerator.model(),
+                                snippetAnalysisGenerator.promptVersion()
+                        )
                 ));
 
         return toResponse(analysis);
@@ -68,6 +83,10 @@ public class SnippetAnalysisService {
                 analysis.getSummary(),
                 splitLines(analysis.getKeyPoints()),
                 splitCommaSeparated(analysis.getSuggestedTags()),
+                analysis.getProvider(),
+                analysis.getModel(),
+                analysis.getPromptVersion(),
+                analysis.getAnalyzedAt(),
                 analysis.getCreatedAt()
         );
     }

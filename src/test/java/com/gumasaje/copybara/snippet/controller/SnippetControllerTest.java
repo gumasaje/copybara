@@ -20,7 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-@SpringBootTest
+@SpringBootTest(properties = "gemini.api-key=")
 @AutoConfigureMockMvc
 class SnippetControllerTest {
 
@@ -94,7 +94,11 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$.snippetId").value(snippetId))
                 .andExpect(jsonPath("$.summary").isString())
                 .andExpect(jsonPath("$.keyPoints[0]").isString())
-                .andExpect(jsonPath("$.suggestedTags[0]").isString());
+                .andExpect(jsonPath("$.suggestedTags[0]").isString())
+                .andExpect(jsonPath("$.provider").value("heuristic-dev-fallback"))
+                .andExpect(jsonPath("$.model").value("local-heuristic"))
+                .andExpect(jsonPath("$.promptVersion").value("heuristic-v1"))
+                .andExpect(jsonPath("$.analyzedAt").isString());
     }
 
     @Test
@@ -111,7 +115,11 @@ class SnippetControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.snippetId").value(snippetId))
                 .andExpect(jsonPath("$.summary").isString())
-                .andExpect(jsonPath("$.keyPoints[0]").isString());
+                .andExpect(jsonPath("$.keyPoints[0]").isString())
+                .andExpect(jsonPath("$.provider").value("heuristic-dev-fallback"))
+                .andExpect(jsonPath("$.model").value("local-heuristic"))
+                .andExpect(jsonPath("$.promptVersion").value("heuristic-v1"))
+                .andExpect(jsonPath("$.analyzedAt").isString());
     }
 
     @Test
@@ -182,6 +190,68 @@ class SnippetControllerTest {
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.notes").value(nullValue()));
+    }
+
+    @Test
+    void updateNotesReturnsNotFoundWhenSnippetIsDeleted() throws Exception {
+        String accessToken = signupAndLogin("snippet-notes-deleted@example.com", "snippet-notes-deleted-user");
+        Long snippetId = createSnippet(accessToken, "Deleted notes snippet", "deleted notes target");
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(put("/api/snippets/{snippetId}/notes", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "삭제된 스니펫 노트 수정"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));
+    }
+
+    @Test
+    void updateNotesReflectsUpdatedAtInSnippetList() throws Exception {
+        String accessToken = signupAndLogin("snippet-notes-updated-at@example.com", "snippet-notes-updated-at-user");
+        Long olderSnippetId = createSnippet(accessToken, "Older notes snippet", "older notes target");
+        Long targetSnippetId = createSnippet(accessToken, "Target notes snippet", "target notes target");
+
+        MvcResult beforeResult = mockMvc.perform(get("/api/snippets/{snippetId}", targetSnippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String beforeUpdatedAt = extractStringValue(beforeResult.getResponse().getContentAsString(), "updatedAt");
+
+        Thread.sleep(5);
+
+        mockMvc.perform(put("/api/snippets/{snippetId}/notes", targetSnippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "updated-at 반영 노트"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updatedAt").isString());
+
+        MvcResult afterResult = mockMvc.perform(get("/api/snippets/{snippetId}", targetSnippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String afterUpdatedAt = extractStringValue(afterResult.getResponse().getContentAsString(), "updatedAt");
+        org.assertj.core.api.Assertions.assertThat(afterUpdatedAt).isNotEqualTo(beforeUpdatedAt);
+
+        mockMvc.perform(get("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].snippetId").value(targetSnippetId))
+                .andExpect(jsonPath("$[1].snippetId").value(olderSnippetId));
     }
 
     @Test
@@ -512,6 +582,40 @@ class SnippetControllerTest {
     }
 
     @Test
+    void updateSnippetInvalidatesExistingAnalysis() throws Exception {
+        String accessToken = signupAndLogin("snippet-analysis-stale@example.com", "snippet-analysis-stale-user");
+        Long snippetId = createSnippet(accessToken, "Old analysis title", "old analysis content");
+
+        mockMvc.perform(post("/api/snippets/{snippetId}/analysis", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Updated analysis title",
+                                  "content": "updated analysis content",
+                                  "language": "Java",
+                                  "categoryId": null,
+                                  "tags": ["Java"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/snippets/{snippetId}/analysis", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_ANALYSIS_NOT_FOUND"));
+
+        mockMvc.perform(post("/api/snippets/{snippetId}/analysis", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId));
+    }
+
+    @Test
     void createSnippetReusesTagWhenNameDiffersOnlyByCase() throws Exception {
         String accessToken = signupAndLogin("snippet-tag-normalize@example.com", "snippet-tag-normalize-user");
 
@@ -536,6 +640,90 @@ class SnippetControllerTest {
 
         org.assertj.core.api.Assertions.assertThat(tagRepository.findAllByNormalizedNameIn(List.of("java")))
                 .hasSize(1);
+    }
+
+    @Test
+    void createSnippetCollapsesDuplicateTagsInSameRequest() throws Exception {
+        String accessToken = signupAndLogin("snippet-tag-duplicate@example.com", "snippet-tag-duplicate-user");
+
+        String requestBody = """
+                {
+                  "title": "Duplicate tag snippet",
+                  "content": "duplicate-tag-content",
+                  "language": "Java",
+                  "categoryId": null,
+                  "tags": ["Java", " java ", "JAVA"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags[0]").value("Java"))
+                .andExpect(jsonPath("$.tags[1]").doesNotExist());
+
+        org.assertj.core.api.Assertions.assertThat(tagRepository.findAllByNormalizedNameIn(List.of("java")))
+                .hasSize(1);
+    }
+
+    @Test
+    void createSnippetReturnsBadRequestWhenTagNameIsBlank() throws Exception {
+        String accessToken = signupAndLogin("snippet-tag-blank@example.com", "snippet-tag-blank-user");
+
+        String requestBody = """
+                {
+                  "title": "Blank tag snippet",
+                  "content": "blank-tag-content",
+                  "language": "Java",
+                  "categoryId": null,
+                  "tags": ["Java", " "]
+                }
+                """;
+
+        mockMvc.perform(post("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("태그 이름은 비어 있을 수 없습니다."));
+    }
+
+    @Test
+    void updateSnippetReplacesTagsWithNormalizedSet() throws Exception {
+        String accessToken = signupAndLogin("snippet-tag-replace@example.com", "snippet-tag-replace-user");
+        Long snippetId = createSnippetWithTags(accessToken, "Replace tag snippet", "replace-tag-content", "[\"Java\", \"Security\"]");
+
+        mockMvc.perform(put("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Replace tag snippet",
+                                  "content": "replace-tag-content",
+                                  "language": "Java",
+                                  "categoryId": null,
+                                  "tags": [" p0UniqueTag ", "P0UNIQUETAG"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tags[0]").value("p0UniqueTag"))
+                .andExpect(jsonPath("$.tags[1]").doesNotExist());
+
+        mockMvc.perform(get("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("tag", "p0uniquetag"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].snippetId").value(snippetId))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+
+        mockMvc.perform(get("/api/snippets")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("tag", "security"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test
@@ -626,6 +814,62 @@ class SnippetControllerTest {
     }
 
     @Test
+    void restoreSnippetPreservesCategoryTagsNotesAndFavorite() throws Exception {
+        String accessToken = signupAndLogin("snippet-restore-metadata@example.com", "snippet-restore-metadata-user");
+        Long categoryId = createCategory(accessToken, "백엔드");
+        Long snippetId = createSnippet(accessToken, "Restore metadata snippet", "restore-metadata-content", categoryId, "[\"Spring\", \"Security\"]");
+
+        updateNotes(accessToken, snippetId, "복구 후 유지할 노트");
+        mockMvc.perform(put("/api/snippets/{snippetId}/favorite", snippetId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "favorite": true
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(patch("/api/snippets/{snippetId}/restore", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snippetId").value(snippetId))
+                .andExpect(jsonPath("$.category.categoryId").value(categoryId))
+                .andExpect(jsonPath("$.tags", containsInAnyOrder("Spring", "Security")))
+                .andExpect(jsonPath("$.notes").value("복구 후 유지할 노트"))
+                .andExpect(jsonPath("$.favorite").value(true));
+    }
+
+    @Test
+    void deletedSnippetIsExcludedFromSearchAndTagFilters() throws Exception {
+        String accessToken = signupAndLogin("snippet-delete-filter@example.com", "snippet-delete-filter-user");
+        Long deletedSnippetId = createSnippetWithTags(accessToken, "Deleted JWT snippet", "deleted token content", "[\"Security\"]");
+        Long activeSnippetId = createSnippetWithTags(accessToken, "Active JWT snippet", "active token content", "[\"Security\"]");
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", deletedSnippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("keyword", "token")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].snippetId").value(activeSnippetId))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+
+        mockMvc.perform(get("/api/snippets")
+                        .param("tag", "security")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].snippetId").value(activeSnippetId))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
     void deleteSnippetPermanentlyRemovesSnippetFromTrash() throws Exception {
         String accessToken = signupAndLogin("snippet-permanent-delete@example.com", "snippet-permanent-delete-user");
         Long snippetId = createSnippet(accessToken, "Permanent delete snippet", "permanent-delete-content");
@@ -644,6 +888,29 @@ class SnippetControllerTest {
                 .andExpect(jsonPath("$").isEmpty());
 
         mockMvc.perform(get("/api/snippets/trash/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));
+    }
+
+    @Test
+    void deleteSnippetPermanentlyRemovesStoredAnalysis() throws Exception {
+        String accessToken = signupAndLogin("snippet-permanent-delete-analysis@example.com", "snippet-permanent-delete-analysis-user");
+        Long snippetId = createSnippet(accessToken, "Permanent analysis snippet", "permanent analysis content");
+
+        mockMvc.perform(post("/api/snippets/{snippetId}/analysis", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(delete("/api/snippets/{snippetId}/permanent", snippetId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/snippets/{snippetId}/analysis", snippetId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNIPPET_NOT_FOUND"));

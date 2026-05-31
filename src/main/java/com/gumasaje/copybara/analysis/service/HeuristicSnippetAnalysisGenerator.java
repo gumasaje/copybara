@@ -9,12 +9,31 @@ import org.springframework.stereotype.Component;
 @Component
 public class HeuristicSnippetAnalysisGenerator implements SnippetAnalysisGenerator {
 
+    private static final String PROVIDER = "heuristic-dev-fallback";
+    private static final String MODEL = "local-heuristic";
+    private static final String PROMPT_VERSION = "heuristic-v1";
+
     @Override
     public SnippetAnalysisResult generate(Snippet snippet) {
         String summary = buildSummary(snippet);
         List<String> keyPoints = buildKeyPoints(snippet);
         List<String> suggestedTags = buildSuggestedTags(snippet);
         return new SnippetAnalysisResult(summary, keyPoints, suggestedTags);
+    }
+
+    @Override
+    public String provider() {
+        return PROVIDER;
+    }
+
+    @Override
+    public String model() {
+        return MODEL;
+    }
+
+    @Override
+    public String promptVersion() {
+        return PROMPT_VERSION;
     }
 
     private String buildSummary(Snippet snippet) {

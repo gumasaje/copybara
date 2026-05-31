@@ -65,6 +65,10 @@ export type SnippetAnalysis = {
   summary: string;
   keyPoints: string[];
   suggestedTags: string[];
+  provider: string;
+  model: string;
+  promptVersion: string;
+  analyzedAt: string;
   createdAt: string;
 };
 

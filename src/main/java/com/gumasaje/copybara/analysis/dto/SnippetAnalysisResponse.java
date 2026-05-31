@@ -9,6 +9,10 @@ public record SnippetAnalysisResponse(
         String summary,
         List<String> keyPoints,
         List<String> suggestedTags,
+        String provider,
+        String model,
+        String promptVersion,
+        LocalDateTime analyzedAt,
         LocalDateTime createdAt
 ) {
 }

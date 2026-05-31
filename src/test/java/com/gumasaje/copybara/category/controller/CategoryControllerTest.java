@@ -148,6 +148,27 @@ class CategoryControllerTest {
     }
 
     @Test
+    void deleteCategoryCompactsRemainingSortOrder() throws Exception {
+        String accessToken = signupAndLogin("category-delete-order@example.com", "category-delete-order-user");
+        Long backendCategoryId = createCategory(accessToken, "백엔드");
+        Long algorithmCategoryId = createCategory(accessToken, "알고리즘");
+        Long databaseCategoryId = createCategory(accessToken, "데이터베이스");
+
+        mockMvc.perform(delete("/api/categories/{categoryId}", algorithmCategoryId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/categories")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryId").value(backendCategoryId))
+                .andExpect(jsonPath("$[0].sortOrder").value(1))
+                .andExpect(jsonPath("$[1].categoryId").value(databaseCategoryId))
+                .andExpect(jsonPath("$[1].sortOrder").value(2))
+                .andExpect(jsonPath("$[2]").doesNotExist());
+    }
+
+    @Test
     void createCategoryReturnsConflictWhenNameIsDuplicatedForSameMember() throws Exception {
         String accessToken = signupAndLogin("category-duplicate@example.com", "category-duplicate-user");
         createCategory(accessToken, "백엔드");

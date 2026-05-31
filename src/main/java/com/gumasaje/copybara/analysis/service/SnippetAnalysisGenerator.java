@@ -6,4 +6,10 @@ import com.gumasaje.copybara.snippet.domain.Snippet;
 public interface SnippetAnalysisGenerator {
 
     SnippetAnalysisResult generate(Snippet snippet);
+
+    String provider();
+
+    String model();
+
+    String promptVersion();
 }

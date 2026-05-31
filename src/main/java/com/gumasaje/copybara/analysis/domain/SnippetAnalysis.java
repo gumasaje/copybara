@@ -34,23 +34,50 @@ public class SnippetAnalysis {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String suggestedTags;
 
+    @Column(length = 50)
+    private String provider;
+
+    @Column(length = 100)
+    private String model;
+
+    @Column(length = 100)
+    private String promptVersion;
+
+    private LocalDateTime analyzedAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     protected SnippetAnalysis() {
     }
 
-    public SnippetAnalysis(Snippet snippet, String summary, String keyPoints, String suggestedTags) {
+    public SnippetAnalysis(
+            Snippet snippet,
+            String summary,
+            String keyPoints,
+            String suggestedTags,
+            String provider,
+            String model,
+            String promptVersion
+    ) {
         this.snippet = snippet;
         this.summary = summary;
         this.keyPoints = keyPoints;
         this.suggestedTags = suggestedTags;
+        this.provider = provider;
+        this.model = model;
+        this.promptVersion = promptVersion;
+        this.analyzedAt = LocalDateTime.now();
     }
 
-    public void update(String summary, String keyPoints, String suggestedTags) {
+    public void update(String summary, String keyPoints, String suggestedTags, String provider, String model, String promptVersion) {
         this.summary = summary;
         this.keyPoints = keyPoints;
         this.suggestedTags = suggestedTags;
+        this.provider = provider;
+        this.model = model;
+        this.promptVersion = promptVersion;
+        this.analyzedAt = LocalDateTime.now();
     }
 
     @PrePersist
@@ -76,6 +103,22 @@ public class SnippetAnalysis {
 
     public String getSuggestedTags() {
         return suggestedTags;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public String getPromptVersion() {
+        return promptVersion;
+    }
+
+    public LocalDateTime getAnalyzedAt() {
+        return analyzedAt;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -118,6 +118,10 @@ public class Snippet {
         this.favorite = favorite;
     }
 
+    public void clearAnalysis() {
+        this.analysis = null;
+    }
+
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }

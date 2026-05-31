@@ -51,6 +51,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("SNIPPET_ANALYSIS_NOT_FOUND", exception.getMessage());
     }
 
+    @ExceptionHandler(SnippetAnalysisGenerationException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public ErrorResponse handleSnippetAnalysisGenerationException(SnippetAnalysisGenerationException exception) {
+        return new ErrorResponse("SNIPPET_ANALYSIS_GENERATION_FAILED", exception.getMessage());
+    }
+
     @ExceptionHandler(InvalidCategoryOrderException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleInvalidCategoryOrderException(InvalidCategoryOrderException exception) {
