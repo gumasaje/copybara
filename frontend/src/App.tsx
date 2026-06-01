@@ -14,6 +14,7 @@ import { useSidebarInteractions } from "./hooks/useSidebarInteractions";
 import { useWorkspaceActions } from "./hooks/useWorkspaceActions";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
 import { parseSnippetFilterScope, resolveSnippetFocusScope } from "./utils/helpers";
+import { buildWorkspaceHash, parseWorkspaceHash } from "./utils/routing";
 
 const ComposerModal = lazy(() => import("./components/modals/ComposerModal").then((module) => ({ default: module.ComposerModal })));
 const DEFAULT_FORM: SnippetFormState = {
@@ -25,14 +26,16 @@ const DEFAULT_FORM: SnippetFormState = {
 };
 
 export default function App() {
+  const initialRouteRef = useRef(parseWorkspaceHash(window.location.hash));
+  const isApplyingRouteRef = useRef(false);
   const detailPaneRef = useRef<HTMLElement | null>(null);
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const draggedSnippetRef = useRef<SnippetSummary | null>(null);
   const draggedCategoryRef = useRef<Category | null>(null);
-  const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(null);
-  const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(null);
-  const [searchInput, setSearchInput] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const [selectedSnippetId, setSelectedSnippetId] = useState<number | null>(initialRouteRef.current.selectedSnippetId);
+  const [selectedSidebarScope, setSelectedSidebarScope] = useState<string | null>(initialRouteRef.current.selectedSidebarScope);
+  const [searchInput, setSearchInput] = useState(initialRouteRef.current.keyword);
+  const [keyword, setKeyword] = useState(initialRouteRef.current.keyword);
   const [showComposer, setShowComposer] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<SnippetDetail | null>(null);
   const [formState, setFormState] = useState<SnippetFormState>(DEFAULT_FORM);
@@ -51,7 +54,7 @@ export default function App() {
   const [snippetModalTarget, setSnippetModalTarget] = useState<SnippetSummary | null>(null);
   const [snippetTitleDraft, setSnippetTitleDraft] = useState("");
   const [snippetMoveCategoryId, setSnippetMoveCategoryId] = useState<number | null>(null);
-  const [overviewMode, setOverviewMode] = useState<"all" | "trash" | "search" | null>(null);
+  const [overviewMode, setOverviewMode] = useState<"all" | "trash" | "search" | null>(initialRouteRef.current.overviewMode);
   const [searchOverview, setSearchOverview] = useState<SearchOverviewState | null>(null);
 
   const {
@@ -234,6 +237,48 @@ export default function App() {
   }, [allSnippets, favoriteSnippets, recentSnippets, scopedSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
 
   const selectionCandidateSnippets = isSearchMode ? allSnippets : scopedSidebarSnippets;
+
+  useEffect(() => {
+    function applyRouteFromHash() {
+      const route = parseWorkspaceHash(window.location.hash);
+      isApplyingRouteRef.current = true;
+      setKeyword(route.keyword);
+      setSearchInput(route.keyword);
+      setOverviewMode(route.overviewMode);
+      setSearchOverview(null);
+      setSelectedSidebarScope(route.selectedSidebarScope);
+      setSelectedSnippetId(route.selectedSnippetId);
+      closeAllMenus();
+    }
+
+    window.addEventListener("hashchange", applyRouteFromHash);
+    window.addEventListener("popstate", applyRouteFromHash);
+
+    return () => {
+      window.removeEventListener("hashchange", applyRouteFromHash);
+      window.removeEventListener("popstate", applyRouteFromHash);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (isApplyingRouteRef.current) {
+      isApplyingRouteRef.current = false;
+      return;
+    }
+
+    const nextHash = buildWorkspaceHash({
+      overviewMode,
+      selectedSidebarScope,
+      selectedSnippetId,
+      keyword
+    });
+
+    if (window.location.hash !== nextHash) {
+      window.history.pushState(null, "", nextHash);
+    }
+  }, [keyword, overviewMode, selectedSidebarScope, selectedSnippetId, user]);
 
   useEffect(() => {
     if (selectionCandidateSnippets.length > 0 && (selectedSnippetId == null || !selectionCandidateSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
