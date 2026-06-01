@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildSnippetListFilter, parseSidebarMenuKey, parseSnippetFilterScope, parseTags } from "./helpers";
+import {
+  buildCategoryReorder,
+  buildSnippetListFilter,
+  parseSidebarMenuKey,
+  parseSnippetFilterScope,
+  parseTags
+} from "./helpers";
 
 describe("parseTags", () => {
   it("splits comma-separated tags and trims whitespace", () => {
@@ -50,5 +56,25 @@ describe("buildSnippetListFilter", () => {
 
   it("does not add client-only scopes to keyword searches", () => {
     expect(buildSnippetListFilter("jwt", "trash")).toEqual({ keyword: "jwt" });
+  });
+});
+
+describe("buildCategoryReorder", () => {
+  it("moves a category before the requested target slot", () => {
+    expect(buildCategoryReorder([1, 2, 3], 3, 0)).toEqual([3, 1, 2]);
+  });
+
+  it("moves a category after later target slots with index adjustment", () => {
+    expect(buildCategoryReorder([1, 2, 3], 1, 3)).toEqual([2, 3, 1]);
+  });
+
+  it("returns null for no-op drops", () => {
+    expect(buildCategoryReorder([1, 2, 3], 2, 2)).toBeNull();
+  });
+
+  it("returns null for unknown dragging categories or invalid target slots", () => {
+    expect(buildCategoryReorder([1, 2, 3], 9, 1)).toBeNull();
+    expect(buildCategoryReorder([1, 2, 3], 2, -1)).toBeNull();
+    expect(buildCategoryReorder([1, 2, 3], 2, 4)).toBeNull();
   });
 });

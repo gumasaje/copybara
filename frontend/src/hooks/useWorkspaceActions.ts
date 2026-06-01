@@ -1,6 +1,6 @@
 import { api } from "../api";
 import type { Category, SnippetDetail, SnippetFormState, SnippetSummary } from "../types";
-import { parseTags } from "../utils/helpers";
+import { buildCategoryReorder, parseTags } from "../utils/helpers";
 
 type ConfirmDialogState = {
   title: string;
@@ -177,18 +177,9 @@ export function useWorkspaceActions({
   async function handleCategoryReorderDrop(targetIndex: number, draggingCategory: Category) {
     try {
       const orderedCategoryIds = categories.map((category) => category.categoryId);
-      const fromIndex = orderedCategoryIds.indexOf(draggingCategory.categoryId);
+      const nextOrder = buildCategoryReorder(orderedCategoryIds, draggingCategory.categoryId, targetIndex);
 
-      if (fromIndex < 0) {
-        throw new Error("카테고리 순서를 찾을 수 없습니다.");
-      }
-
-      const nextOrder = [...orderedCategoryIds];
-      const [movedCategoryId] = nextOrder.splice(fromIndex, 1);
-      const adjustedTargetIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-      nextOrder.splice(adjustedTargetIndex, 0, movedCategoryId);
-
-      if (orderedCategoryIds.every((categoryId, index) => categoryId === nextOrder[index])) {
+      if (nextOrder == null) {
         return;
       }
 
