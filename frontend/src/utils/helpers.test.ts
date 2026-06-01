@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSidebarMenuKey, parseSnippetFilterScope, parseTags } from "./helpers";
+import { buildSnippetListFilter, parseSidebarMenuKey, parseSnippetFilterScope, parseTags } from "./helpers";
 
 describe("parseTags", () => {
   it("splits comma-separated tags and trims whitespace", () => {
@@ -32,5 +32,23 @@ describe("parseSnippetFilterScope", () => {
 
   it("returns null for non-server-backed scopes", () => {
     expect(parseSnippetFilterScope("favorites")).toBeNull();
+  });
+});
+
+describe("buildSnippetListFilter", () => {
+  it("uses normal list loading for empty searches", () => {
+    expect(buildSnippetListFilter("   ", "folder-12")).toEqual({});
+  });
+
+  it("combines keyword searches with folder scope", () => {
+    expect(buildSnippetListFilter(" jwt ", "folder-12")).toEqual({ keyword: "jwt", categoryId: 12 });
+  });
+
+  it("combines keyword searches with tag scope", () => {
+    expect(buildSnippetListFilter("jwt", "tag-Spring%20Security")).toEqual({ keyword: "jwt", tag: "Spring Security" });
+  });
+
+  it("does not add client-only scopes to keyword searches", () => {
+    expect(buildSnippetListFilter("jwt", "trash")).toEqual({ keyword: "jwt" });
   });
 });

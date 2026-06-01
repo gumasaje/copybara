@@ -5,6 +5,7 @@ type SearchResultsSectionProps = {
   query: string;
   selectedSnippetId: number | null;
   selectedSidebarScope: string | null;
+  resultScope: string;
   onOpenSnippet: (snippetId: number, scope: string) => void;
 };
 
@@ -13,6 +14,7 @@ export function SearchResultsSection({
   query,
   selectedSnippetId,
   selectedSidebarScope,
+  resultScope,
   onOpenSnippet
 }: SearchResultsSectionProps) {
   return (
@@ -37,8 +39,8 @@ export function SearchResultsSection({
               {snippets.map((snippet) => (
                 <button
                   key={`all-${snippet.snippetId}`}
-                  className={`search-result-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === "search" ? "active" : ""}`}
-                  onClick={() => onOpenSnippet(snippet.snippetId, "search")}
+                  className={`search-result-row ${selectedSnippetId === snippet.snippetId && selectedSidebarScope === resultScope ? "active" : ""}`}
+                  onClick={() => onOpenSnippet(snippet.snippetId, resultScope)}
                 >
                   <span className="search-result-title truncate">{snippet.title}</span>
                   <span className="search-result-meta truncate">

@@ -217,6 +217,12 @@ export function useWorkspaceActions({
         if (selectedSidebarScope === `folder-${category.categoryId}`) {
           setSelectedSidebarScope("inbox");
         }
+        setSnippetDetail((prev) => {
+          if (prev?.category?.categoryId !== category.categoryId) {
+            return prev;
+          }
+          return { ...prev, category: null };
+        });
         await refreshWorkspace();
       }
     });

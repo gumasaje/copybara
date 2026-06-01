@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { Category, SnippetAnalysis, SnippetDetail, SnippetSummary, User } from "../types";
-import { parseSnippetFilterScope } from "../utils/helpers";
+import { buildSnippetListFilter, parseSnippetFilterScope } from "../utils/helpers";
 
 type UseWorkspaceDataParams = {
   user: User | null;
@@ -32,7 +32,7 @@ export function useWorkspaceData({
   useEffect(() => {
     if (!user) return;
     void refreshWorkspace();
-  }, [user, keyword]);
+  }, [user, keyword, selectedSidebarScope]);
 
   useEffect(() => {
     if (!user) return;
@@ -80,7 +80,7 @@ export function useWorkspaceData({
       setScreenError(null);
       const [categoryList, snippetList, trashList] = await Promise.all([
         api.getCategories(),
-        api.getSnippets({ keyword }),
+        api.getSnippets(buildSnippetListFilter(keyword, selectedSidebarScope)),
         api.getTrashSnippets()
       ]);
       setCategories(categoryList);

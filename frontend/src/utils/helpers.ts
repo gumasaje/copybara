@@ -21,3 +21,17 @@ export function parseSnippetFilterScope(scope: string | null) {
   }
   return null;
 }
+
+export function buildSnippetListFilter(keyword: string, scope: string | null) {
+  const trimmedKeyword = keyword.trim();
+  const scopeFilter = parseSnippetFilterScope(scope);
+
+  if (trimmedKeyword.length === 0) {
+    return {};
+  }
+
+  return {
+    ...scopeFilter,
+    keyword: trimmedKeyword
+  };
+}

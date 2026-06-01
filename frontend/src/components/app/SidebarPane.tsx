@@ -17,6 +17,7 @@ type SidebarPaneProps = {
   uncategorizedSnippets: SnippetSummary[];
   selectedSnippetId: number | null;
   selectedSidebarScope: string | null;
+  searchResultScope: string;
   openFolderMenuId: number | null;
   openSidebarSnippetMenuId: string | null;
   activeDropTarget: string | null;
@@ -78,6 +79,7 @@ export function SidebarPane({
   uncategorizedSnippets,
   selectedSnippetId,
   selectedSidebarScope,
+  searchResultScope,
   openFolderMenuId,
   openSidebarSnippetMenuId,
   activeDropTarget,
@@ -171,6 +173,7 @@ export function SidebarPane({
               query={searchQuery}
               selectedSnippetId={selectedSnippetId}
               selectedSidebarScope={selectedSidebarScope}
+              resultScope={searchResultScope}
               onOpenSnippet={onOpenSnippet}
             />
           ) : (

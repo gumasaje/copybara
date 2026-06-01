@@ -141,6 +141,7 @@ export default function App() {
 
   const isSearchMode = keyword.trim().length > 0;
   const selectedServerFilter = useMemo(() => parseSnippetFilterScope(selectedSidebarScope), [selectedSidebarScope]);
+  const searchResultScope = selectedServerFilter != null && selectedSidebarScope != null ? selectedSidebarScope : "search";
 
   const uncategorizedSnippets = useMemo(() => {
     return allSnippets.filter((s) => s.category == null && !s.favorite);
@@ -232,15 +233,17 @@ export default function App() {
     return allSnippets;
   }, [allSnippets, favoriteSnippets, recentSnippets, scopedSnippets, selectedSidebarScope, trashSnippets, uncategorizedSnippets]);
 
+  const selectionCandidateSnippets = isSearchMode ? allSnippets : scopedSidebarSnippets;
+
   useEffect(() => {
-    if (scopedSidebarSnippets.length > 0 && (selectedSnippetId == null || !scopedSidebarSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
-      setSelectedSnippetId(scopedSidebarSnippets[0].snippetId);
+    if (selectionCandidateSnippets.length > 0 && (selectedSnippetId == null || !selectionCandidateSnippets.some((snippet) => snippet.snippetId === selectedSnippetId))) {
+      setSelectedSnippetId(selectionCandidateSnippets[0].snippetId);
       return;
     }
-    if (scopedSidebarSnippets.length === 0) {
+    if (selectionCandidateSnippets.length === 0) {
       setSelectedSnippetId(null);
     }
-  }, [scopedSidebarSnippets, selectedSnippetId]);
+  }, [selectionCandidateSnippets, selectedSnippetId]);
 
   useEffect(() => {
     detailPaneRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -540,6 +543,7 @@ export default function App() {
         isTagsExpanded={isTagsExpanded}
         searchInput={searchInput}
         searchQuery={keyword}
+        searchResultScope={searchResultScope}
         overviewMode={overviewMode}
         expandedCategories={expandedCategories}
         tagGroups={tagGroups}
@@ -548,9 +552,16 @@ export default function App() {
         onCloseSidebar={() => setIsSidebarOpen(false)}
         onSearchInputChange={setSearchInput}
         onSearchSubmit={() => {
-          setKeyword(searchInput.trim());
+          const nextKeyword = searchInput.trim();
+          setKeyword(nextKeyword);
           setOverviewMode(null);
           setSearchOverview(null);
+          if (nextKeyword.length > 0 && selectedServerFilter == null) {
+            setSelectedSidebarScope("search");
+          }
+          if (nextKeyword.length === 0 && selectedSidebarScope === "search") {
+            setSelectedSidebarScope(null);
+          }
         }}
         onOpenCreateSnippet={openCreateSnippet}
         onToggleFavoritesExpanded={() => setIsFavoritesExpanded((prev) => !prev)}
