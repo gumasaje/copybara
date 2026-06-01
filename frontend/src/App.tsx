@@ -13,7 +13,7 @@ import { useAuthSession } from "./hooks/useAuthSession";
 import { useSidebarInteractions } from "./hooks/useSidebarInteractions";
 import { useWorkspaceActions } from "./hooks/useWorkspaceActions";
 import { useWorkspaceData } from "./hooks/useWorkspaceData";
-import { parseSnippetFilterScope } from "./utils/helpers";
+import { parseSnippetFilterScope, resolveSnippetFocusScope } from "./utils/helpers";
 
 const ComposerModal = lazy(() => import("./components/modals/ComposerModal").then((module) => ({ default: module.ComposerModal })));
 const DEFAULT_FORM: SnippetFormState = {
@@ -353,20 +353,14 @@ export default function App() {
   }
 
   function focusSnippet(snippet: SnippetDetail | SnippetSummary) {
-    if (snippet.deletedAt != null) {
-      setSelectedSidebarScope("trash");
-      setSelectedSnippetId(snippet.snippetId);
-      return;
-    }
-    if (snippet.category?.categoryId != null) {
+    const scope = resolveSnippetFocusScope(snippet);
+
+    if (scope.startsWith("folder-") && snippet.category?.categoryId != null) {
       setExpandedCategories((prev) => new Set(prev).add(snippet.category!.categoryId));
-      setSelectedSidebarScope(`folder-${snippet.category.categoryId}`);
-    } else if (snippet.favorite) {
+    } else if (scope === "favorites") {
       setIsFavoritesExpanded(true);
-      setSelectedSidebarScope("favorites");
-    } else {
-      setSelectedSidebarScope("inbox");
     }
+    setSelectedSidebarScope(scope);
     setSelectedSnippetId(snippet.snippetId);
   }
 

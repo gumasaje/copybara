@@ -1,3 +1,5 @@
+import type { SnippetDetail, SnippetSummary } from "../types";
+
 export function parseTags(tagsText: string) {
   return tagsText
     .split(",")
@@ -57,4 +59,17 @@ export function buildCategoryReorder(
   }
 
   return nextOrder;
+}
+
+export function resolveSnippetFocusScope(snippet: SnippetDetail | SnippetSummary) {
+  if (snippet.deletedAt != null) {
+    return "trash";
+  }
+  if (snippet.category?.categoryId != null) {
+    return `folder-${snippet.category.categoryId}`;
+  }
+  if (snippet.favorite) {
+    return "favorites";
+  }
+  return "inbox";
 }

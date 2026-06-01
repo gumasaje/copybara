@@ -4,8 +4,10 @@ import {
   buildSnippetListFilter,
   parseSidebarMenuKey,
   parseSnippetFilterScope,
-  parseTags
+  parseTags,
+  resolveSnippetFocusScope
 } from "./helpers";
+import type { SnippetSummary } from "../types";
 
 describe("parseTags", () => {
   it("splits comma-separated tags and trims whitespace", () => {
@@ -76,5 +78,35 @@ describe("buildCategoryReorder", () => {
     expect(buildCategoryReorder([1, 2, 3], 9, 1)).toBeNull();
     expect(buildCategoryReorder([1, 2, 3], 2, -1)).toBeNull();
     expect(buildCategoryReorder([1, 2, 3], 2, 4)).toBeNull();
+  });
+});
+
+describe("resolveSnippetFocusScope", () => {
+  const snippet: SnippetSummary = {
+    snippetId: 1,
+    title: "Scope target",
+    language: "Java",
+    category: null,
+    favorite: false,
+    tags: [],
+    createdAt: "2026-05-10T09:00:00.000Z",
+    updatedAt: "2026-05-10T09:00:00.000Z",
+    deletedAt: null
+  };
+
+  it("focuses deleted snippets in trash", () => {
+    expect(resolveSnippetFocusScope({ ...snippet, deletedAt: "2026-05-12T09:00:00.000Z", favorite: true })).toBe("trash");
+  });
+
+  it("focuses moved snippets in their folder", () => {
+    expect(resolveSnippetFocusScope({ ...snippet, category: { categoryId: 12, name: "Backend" }, favorite: true })).toBe("folder-12");
+  });
+
+  it("focuses uncategorized favorites in pinned scope", () => {
+    expect(resolveSnippetFocusScope({ ...snippet, favorite: true })).toBe("favorites");
+  });
+
+  it("focuses unpinned uncategorized snippets in inbox", () => {
+    expect(resolveSnippetFocusScope(snippet)).toBe("inbox");
   });
 });
