@@ -24,6 +24,7 @@ type WorkspacePaneProps = {
   onSelectSnippet: (snippetId: number, scope: string | null) => void;
   onRestoreSnippet: (snippetId: number) => Promise<void> | void;
   onDeleteSnippetFromSummary: (snippet: SnippetSummary) => void;
+  onToggleFavoriteFromSummary: (snippet: SnippetSummary) => Promise<void> | void;
   onToggleFavorite: () => Promise<void> | void;
   onEditSnippet: () => void;
   onDeleteSnippet: () => void;
@@ -53,6 +54,7 @@ export function WorkspacePane({
   onSelectSnippet,
   onRestoreSnippet,
   onDeleteSnippetFromSummary,
+  onToggleFavoriteFromSummary,
   onToggleFavorite,
   onEditSnippet,
   onDeleteSnippet,
@@ -85,6 +87,7 @@ export function WorkspacePane({
             onSelectSnippet={onSelectSnippet}
             onRestoreSnippet={onRestoreSnippet}
             onDeleteSnippet={onDeleteSnippetFromSummary}
+            onToggleFavorite={onToggleFavoriteFromSummary}
           />
         </Suspense>
       ) : snippetDetail ? (

@@ -10,6 +10,7 @@ type OverviewListViewProps = {
   onSelectSnippet: (snippetId: number, scope: string | null) => void;
   onRestoreSnippet: (snippetId: number) => Promise<void> | void;
   onDeleteSnippet: (snippet: SnippetSummary) => void;
+  onToggleFavorite: (snippet: SnippetSummary) => Promise<void> | void;
 };
 
 export function OverviewListView({
@@ -19,7 +20,8 @@ export function OverviewListView({
   searchOverview,
   onSelectSnippet,
   onRestoreSnippet,
-  onDeleteSnippet
+  onDeleteSnippet,
+  onToggleFavorite
 }: OverviewListViewProps) {
   const snippets = mode === "trash"
     ? trashSnippets
@@ -106,7 +108,20 @@ export function OverviewListView({
                     </button>
                   </div>
                 ) : (
-                  <span>{formatOverviewTimestamp(snippet.updatedAt)}</span>
+                  <div className="overview-row-actions">
+                    <button
+                      className={`icon-button ghost mini ${snippet.favorite ? "favorite-icon" : ""}`}
+                      aria-label={snippet.favorite ? "Unpin snippet" : "Pin snippet"}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onToggleFavorite(snippet);
+                      }}
+                      data-tooltip={snippet.favorite ? "Unpin" : "Pin"}
+                    >
+                      <Pin size={14} />
+                    </button>
+                    <span>{formatOverviewTimestamp(snippet.updatedAt)}</span>
+                  </div>
                 )}
               </div>
             </div>

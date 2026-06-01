@@ -641,6 +641,7 @@ export default function App() {
         }}
         onRestoreSnippet={handleRestoreSnippet}
         onDeleteSnippetFromSummary={openDeleteSnippetDialogFromSummary}
+        onToggleFavoriteFromSummary={handleSidebarFavoriteToggle}
         onToggleFavorite={handleFavoriteToggle}
         onEditSnippet={openEditSnippet}
         onDeleteSnippet={openDeleteSnippetDialog}

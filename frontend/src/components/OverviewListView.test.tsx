@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OverviewListView } from "./OverviewListView";
 import type { SnippetSummary } from "../types";
 
@@ -29,6 +29,10 @@ const snippets: SnippetSummary[] = [
 ];
 
 describe("OverviewListView", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("shows pinned snippets before more recent unpinned snippets in all mode", () => {
     render(
       <OverviewListView
@@ -39,6 +43,7 @@ describe("OverviewListView", () => {
         onSelectSnippet={vi.fn()}
         onRestoreSnippet={vi.fn()}
         onDeleteSnippet={vi.fn()}
+        onToggleFavorite={vi.fn()}
       />
     );
 
@@ -59,11 +64,35 @@ describe("OverviewListView", () => {
         onSelectSnippet={onSelectSnippet}
         onRestoreSnippet={onRestoreSnippet}
         onDeleteSnippet={vi.fn()}
+        onToggleFavorite={vi.fn()}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Restore snippet" }));
     expect(onRestoreSnippet).toHaveBeenCalledWith(2);
+    expect(onSelectSnippet).not.toHaveBeenCalled();
+  });
+
+  it("toggles favorite from list actions without selecting the row", () => {
+    const onSelectSnippet = vi.fn();
+    const onToggleFavorite = vi.fn();
+
+    render(
+      <OverviewListView
+        mode="all"
+        allSnippets={snippets}
+        trashSnippets={[]}
+        searchOverview={null}
+        onSelectSnippet={onSelectSnippet}
+        onRestoreSnippet={vi.fn()}
+        onDeleteSnippet={vi.fn()}
+        onToggleFavorite={onToggleFavorite}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin snippet" }));
+
+    expect(onToggleFavorite).toHaveBeenCalledWith(snippets[1]);
     expect(onSelectSnippet).not.toHaveBeenCalled();
   });
 });
