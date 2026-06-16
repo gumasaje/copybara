@@ -261,6 +261,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    function handleSessionExpiredRouteReset() {
+      resetWorkspaceRoute();
+    }
+
+    window.addEventListener("copybara:session-expired", handleSessionExpiredRouteReset);
+    return () => window.removeEventListener("copybara:session-expired", handleSessionExpiredRouteReset);
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
 
     if (isApplyingRouteRef.current) {
@@ -351,8 +360,18 @@ export default function App() {
 
   function handleLogout() {
     logoutSession();
+    resetWorkspaceRoute();
+  }
+
+  function resetWorkspaceRoute() {
+    setKeyword("");
+    setSearchInput("");
+    setSearchOverview(null);
+    setOverviewMode(null);
+    setSelectedSidebarScope(null);
     setSelectedSnippetId(null);
     setSnippetDetail(null);
+    window.history.replaceState(null, "", "#/");
   }
 
   function goHome() {

@@ -236,8 +236,8 @@ export function useWorkspaceActions({
           setSnippetDetail(null);
         } else {
           await api.deleteSnippet(snippetDetail.snippetId);
-          setSelectedSidebarScope("trash");
-          setSelectedSnippetId(snippetDetail.snippetId);
+          setSelectedSnippetId(null);
+          setSnippetDetail(null);
         }
         await refreshWorkspace();
       }
@@ -262,8 +262,10 @@ export function useWorkspaceActions({
           }
         } else {
           await api.deleteSnippet(snippet.snippetId);
-          setSelectedSidebarScope("trash");
-          setSelectedSnippetId(snippet.snippetId);
+          if (selectedSnippetId === snippet.snippetId) {
+            setSelectedSnippetId(null);
+            setSnippetDetail(null);
+          }
         }
         await refreshWorkspace();
       }
